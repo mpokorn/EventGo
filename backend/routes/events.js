@@ -4,7 +4,7 @@ import pool from "../db.js";
 const router = express.Router();
 
 /* --------------------------------------
-   📜 GET all events (sorted by start time)
+ GET all events (sorted by start time)
 -------------------------------------- */
 router.get("/", async (req, res, next) => {
   try {

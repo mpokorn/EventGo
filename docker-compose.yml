@@ -1,3 +1,4 @@
+version: "3.9"
 
 services:
   db:
@@ -5,9 +6,9 @@ services:
     container_name: eventgo_db
     restart: always
     environment:
-      POSTGRES_USER: eventgo_user
-      POSTGRES_PASSWORD: eventgo_pass
-      POSTGRES_DB: eventgo
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     ports:
       - "5432:5432"
     volumes:
@@ -18,9 +19,14 @@ services:
     container_name: eventgo_pgadmin
     restart: always
     environment:
-      PGADMIN_DEFAULT_EMAIL: admin@eventgo.com
-      PGADMIN_DEFAULT_PASSWORD: admin123
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
+      PGADMIN_CONFIG_SERVER_MODE: "False"
     ports:
       - "5050:80"
     depends_on:
       - db
+    volumes:
+      - ./data/pgadmin:/var/lib/pgadmin
+
+volumes: {}
