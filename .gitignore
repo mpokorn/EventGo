@@ -1,0 +1,29 @@
+# --- Environment variables ---
+.env
+.env.*
+
+# --- Database data ---
+data/
+*.sql
+*.dump
+*.backup
+
+# --- Node.js / Frontend (if you add one later) ---
+node_modules/
+dist/
+build/
+
+# --- Python cache files (if your backend uses Python) ---
+__pycache__/
+*.pyc
+*.pyo
+
+# --- OS and Editor files ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# --- Docker specific ---
+*.pid
+*.log
