@@ -4,7 +4,7 @@ import pool from "../db.js";
 const router = express.Router();
 
 /* --------------------------------------
-   🟢 GET all tickets
+   🟢 GET all tickets (with full details)
 -------------------------------------- */
 router.get("/", async (req, res, next) => {
   try {
@@ -12,9 +12,9 @@ router.get("/", async (req, res, next) => {
       SELECT 
         t.id,
         t.user_id,
-        u.name AS buyer_name,
+        (u.first_name || ' ' || u.last_name) AS buyer_name,
         t.owner_id,
-        o.name AS owner_name,
+        (o.first_name || ' ' || o.last_name) AS owner_name,
         t.event_id,
         e.title AS event_name,
         t.ticket_type_id,
@@ -31,9 +31,20 @@ router.get("/", async (req, res, next) => {
       ORDER BY t.issued_at DESC;
     `);
 
-    res.status(200).json(result.rows);
+    if (result.rowCount === 0) {
+      return res.status(200).json({
+        message: "Ni najdenih vstopnic.",
+        tickets: [],
+      });
+    }
+
+    res.status(200).json({
+      message: "Vse vstopnice uspešno pridobljene.",
+      total_tickets: result.rowCount,
+      tickets: result.rows,
+    });
   } catch (err) {
-    console.error("Napaka pri GET /tickets:", err);
+    console.error("❌ Napaka pri GET /tickets:", err);
     next(err);
   }
 });
@@ -53,9 +64,9 @@ router.get("/:id", async (req, res, next) => {
       SELECT 
         t.id,
         t.user_id,
-        u.name AS buyer_name,
+        (u.first_name || ' ' || u.last_name) AS buyer_name,
         t.owner_id,
-        o.name AS owner_name,
+        (o.first_name || ' ' || o.last_name) AS owner_name,
         t.event_id,
         e.title AS event_name,
         t.ticket_type_id,
@@ -80,10 +91,80 @@ router.get("/:id", async (req, res, next) => {
 
     res.status(200).json(result.rows[0]);
   } catch (err) {
-    console.error("Napaka pri GET /tickets/:id:", err);
+    console.error("❌ Napaka pri GET /tickets/:id:", err);
     next(err);
   }
 });
+
+/* --------------------------------------
+   🟢 GET all tickets for a specific user
+   (as buyer or current owner)
+-------------------------------------- */
+router.get("/user/:user_id", async (req, res, next) => {
+  const user_id = parseInt(req.params.user_id);
+
+  if (isNaN(user_id)) {
+    return res.status(400).json({ message: "ID uporabnika mora biti število." });
+  }
+
+  try {
+    // Check if user exists
+    const userCheck = await pool.query(`SELECT id, first_name, last_name FROM users WHERE id = $1;`, [user_id]);
+    if (userCheck.rowCount === 0) {
+      return res.status(404).json({ message: "Uporabnik ne obstaja!" });
+    }
+
+    // Fetch all tickets where the user is the buyer or owner
+    const result = await pool.query(
+      `
+      SELECT 
+        t.id,
+        t.user_id,
+        (u.first_name || ' ' || u.last_name) AS buyer_name,
+        t.owner_id,
+        (o.first_name || ' ' || o.last_name) AS owner_name,
+        t.event_id,
+        e.title AS event_name,
+        e.start_datetime,
+        t.ticket_type_id,
+        tt.type AS ticket_type,
+        tt.price AS ticket_price,
+        t.transaction_id,
+        t.status,
+        t.issued_at
+      FROM tickets t
+      JOIN users u ON t.user_id = u.id
+      LEFT JOIN users o ON t.owner_id = o.id
+      JOIN events e ON t.event_id = e.id
+      LEFT JOIN ticket_types tt ON t.ticket_type_id = tt.id
+      WHERE t.user_id = $1 OR t.owner_id = $1
+      ORDER BY t.issued_at DESC;
+      `,
+      [user_id]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(200).json({
+        message: `Uporabnik ${userCheck.rows[0].first_name} ${userCheck.rows[0].last_name} nima vstopnic.`,
+        tickets: [],
+      });
+    }
+
+    res.status(200).json({
+      message: "Uspešno pridobljene vstopnice uporabnika.",
+      user: {
+        id: user_id,
+        name: `${userCheck.rows[0].first_name} ${userCheck.rows[0].last_name}`,
+      },
+      total_tickets: result.rowCount,
+      tickets: result.rows,
+    });
+  } catch (err) {
+    console.error("❌ Napaka pri GET /tickets/user/:user_id:", err);
+    next(err);
+  }
+});
+
 
 /* --------------------------------------
    🟢 Purchase new tickets (create transaction + tickets)
@@ -96,21 +177,28 @@ router.post("/", async (req, res, next) => {
   }
 
   try {
-    // Validate user and event
+    // Validate user, event, and ticket type
     const [userCheck, eventCheck, typeCheck] = await Promise.all([
       pool.query(`SELECT id FROM users WHERE id = $1`, [user_id]),
       pool.query(`SELECT id FROM events WHERE id = $1`, [event_id]),
-      pool.query(`SELECT total_tickets, tickets_sold, price FROM ticket_types WHERE id = $1`, [ticket_type_id])
+      pool.query(`SELECT total_tickets, tickets_sold, price FROM ticket_types WHERE id = $1`, [
+        ticket_type_id,
+      ]),
     ]);
 
-    if (userCheck.rowCount === 0) return res.status(404).json({ message: "Uporabnik ne obstaja!" });
-    if (eventCheck.rowCount === 0) return res.status(404).json({ message: "Dogodek ne obstaja!" });
-    if (typeCheck.rowCount === 0) return res.status(404).json({ message: "Vrsta vstopnice ne obstaja!" });
+    if (userCheck.rowCount === 0)
+      return res.status(404).json({ message: "Uporabnik ne obstaja!" });
+    if (eventCheck.rowCount === 0)
+      return res.status(404).json({ message: "Dogodek ne obstaja!" });
+    if (typeCheck.rowCount === 0)
+      return res.status(404).json({ message: "Vrsta vstopnice ne obstaja!" });
 
     const { total_tickets, tickets_sold, price } = typeCheck.rows[0];
     const available = total_tickets - tickets_sold;
     if (available < quantity) {
-      return res.status(400).json({ message: `Na voljo je samo ${available} vstopnic za to vrsto!` });
+      return res.status(400).json({
+        message: `Na voljo je samo ${available} vstopnic za to vrsto!`,
+      });
     }
 
     // 🧾 Create transaction
@@ -123,10 +211,10 @@ router.post("/", async (req, res, next) => {
     );
     const transaction_id = txResult.rows[0].id;
 
-    // 🎟️ Create individual tickets
-    const ticketInsertPromises = [];
+    // 🎟️ Create tickets
+    const insertPromises = [];
     for (let i = 0; i < quantity; i++) {
-      ticketInsertPromises.push(
+      insertPromises.push(
         pool.query(
           `INSERT INTO tickets (transaction_id, ticket_type_id, event_id, user_id, status)
            VALUES ($1, $2, $3, $4, 'active');`,
@@ -134,16 +222,13 @@ router.post("/", async (req, res, next) => {
         )
       );
     }
-    await Promise.all(ticketInsertPromises);
+    await Promise.all(insertPromises);
 
-    // 🧮 Update sold counts
+    // Update counts
     await pool.query(
-      `UPDATE ticket_types
-       SET tickets_sold = tickets_sold + $1
-       WHERE id = $2;`,
+      `UPDATE ticket_types SET tickets_sold = tickets_sold + $1 WHERE id = $2;`,
       [quantity, ticket_type_id]
     );
-
     await pool.query(
       `UPDATE events
        SET tickets_sold = (
@@ -159,10 +244,11 @@ router.post("/", async (req, res, next) => {
       message: `Uspešno kupljeno ${quantity} vstopnic!`,
       transaction_id,
       total_price,
-      quantity
+      quantity,
+      payment_method: payment_method || "card",
     });
   } catch (err) {
-    console.error("Napaka pri POST /tickets:", err);
+    console.error("❌ Napaka pri POST /tickets:", err);
     next(err);
   }
 });
@@ -194,7 +280,7 @@ router.put("/:id/refund", async (req, res, next) => {
       ticket: result.rows[0],
     });
   } catch (err) {
-    console.error("Napaka pri PUT /tickets/:id/refund:", err);
+    console.error("❌ Napaka pri PUT /tickets/:id/refund:", err);
     next(err);
   }
 });
@@ -218,7 +304,7 @@ router.delete("/:id", async (req, res, next) => {
       deleted: result.rows[0],
     });
   } catch (err) {
-    console.error("Napaka pri DELETE /tickets/:id:", err);
+    console.error("❌ Napaka pri DELETE /tickets/:id:", err);
     next(err);
   }
 });

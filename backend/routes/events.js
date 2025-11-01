@@ -4,7 +4,7 @@ import pool from "../db.js";
 const router = express.Router();
 
 /* --------------------------------------
- GET all events (sorted by start time)
+   🟢 GET all events (sorted by start time)
 -------------------------------------- */
 router.get("/", async (req, res, next) => {
   try {
@@ -19,7 +19,7 @@ router.get("/", async (req, res, next) => {
         e.total_tickets,
         e.tickets_sold,
         e.created_at,
-        u.name AS organizer_name
+        CONCAT(u.first_name, ' ', u.last_name) AS organizer_name
       FROM events e
       LEFT JOIN users u ON e.organizer_id = u.id
       ORDER BY e.start_datetime ASC;
@@ -44,7 +44,7 @@ router.get("/:id", async (req, res, next) => {
 
   try {
     const eventResult = await pool.query(
-      `SELECT e.*, u.name AS organizer_name
+      `SELECT e.*, CONCAT(u.first_name, ' ', u.last_name) AS organizer_name
        FROM events e
        LEFT JOIN users u ON e.organizer_id = u.id
        WHERE e.id = $1`,
@@ -76,7 +76,7 @@ router.get("/:id", async (req, res, next) => {
 });
 
 /* --------------------------------------
-   🟢 Create a new event
+   🟢 Create a new event (only organizer or admin)
 -------------------------------------- */
 router.post("/", async (req, res, next) => {
   const {
@@ -86,10 +86,10 @@ router.post("/", async (req, res, next) => {
     end_datetime,
     location,
     total_tickets,
-    organizer_id, // ✅ new field
+    organizer_id,
   } = req.body;
 
-  // validation
+  // osnovna validacija
   if (!title || !start_datetime || !end_datetime || !location || !total_tickets || !organizer_id) {
     return res.status(400).json({
       message: "Manjkajo podatki za ustvarjanje dogodka ali niso pravilno strukturirani!",
@@ -97,6 +97,22 @@ router.post("/", async (req, res, next) => {
   }
 
   try {
+    // 1️⃣ Preveri, če organizer obstaja in ima ustrezno vlogo
+    const checkOrganizer = await pool.query(
+      `SELECT role FROM users WHERE id = $1;`,
+      [organizer_id]
+    );
+
+    if (checkOrganizer.rows.length === 0) {
+      return res.status(404).json({ message: "Organizator ne obstaja!" });
+    }
+
+    const { role } = checkOrganizer.rows[0];
+    if (role !== "organizer" && role !== "admin") {
+      return res.status(403).json({ message: "Samo organizator ali admin lahko ustvari dogodek!" });
+    }
+
+    // 2️⃣ Vstavi dogodek
     const sql = `
       INSERT INTO events (title, description, start_datetime, end_datetime, location, total_tickets, organizer_id)
       VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -124,7 +140,7 @@ router.post("/", async (req, res, next) => {
 });
 
 /* --------------------------------------
-   🟢 Update existing event
+   🟡 Update existing event (only organizer or admin)
 -------------------------------------- */
 router.put("/:id", async (req, res, next) => {
   const { id } = req.params;
@@ -139,6 +155,38 @@ router.put("/:id", async (req, res, next) => {
   } = req.body;
 
   try {
+    // 1️⃣ Preveri, ali dogodek obstaja
+    const eventCheck = await pool.query(
+      `SELECT id, organizer_id FROM events WHERE id = $1`,
+      [id]
+    );
+
+    if (eventCheck.rows.length === 0) {
+      return res.status(404).json({ message: "Dogodek ni bil najden!" });
+    }
+
+    const event = eventCheck.rows[0];
+
+    // 2️⃣ Preveri uporabnika, ki želi posodobiti dogodek
+    const userCheck = await pool.query(
+      `SELECT id, role FROM users WHERE id = $1`,
+      [organizer_id]
+    );
+
+    if (userCheck.rows.length === 0) {
+      return res.status(404).json({ message: "Uporabnik ne obstaja!" });
+    }
+
+    const { role } = userCheck.rows[0];
+
+    // 3️⃣ Preveri dovoljenja
+    if (role !== "admin" && event.organizer_id !== parseInt(organizer_id)) {
+      return res.status(403).json({
+        message: "Samo admin ali organizator, ki je ustvaril dogodek, ga lahko ureja!",
+      });
+    }
+
+    // 4️⃣ Posodobi dogodek
     const sql = `
       UPDATE events
       SET title = COALESCE($1, title),
@@ -146,9 +194,8 @@ router.put("/:id", async (req, res, next) => {
           start_datetime = COALESCE($3, start_datetime),
           end_datetime = COALESCE($4, end_datetime),
           location = COALESCE($5, location),
-          total_tickets = COALESCE($6, total_tickets),
-          organizer_id = COALESCE($7, organizer_id)
-      WHERE id = $8
+          total_tickets = COALESCE($6, total_tickets)
+      WHERE id = $7
       RETURNING *;
     `;
 
@@ -159,13 +206,8 @@ router.put("/:id", async (req, res, next) => {
       end_datetime,
       location,
       total_tickets,
-      organizer_id,
       id,
     ]);
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ message: "Dogodek ni bil najden!" });
-    }
 
     res.status(200).json({
       message: "Dogodek uspešno posodobljen!",
@@ -177,18 +219,52 @@ router.put("/:id", async (req, res, next) => {
   }
 });
 
+
+
 /* --------------------------------------
-   🟢 Delete event
+   🔴 Delete event (only organizer or admin)
 -------------------------------------- */
 router.delete("/:id", async (req, res, next) => {
   const { id } = req.params;
+  const { organizer_id } = req.body; // v praksi bi to prišlo iz JWT (req.user.id)
 
   try {
-    const result = await pool.query("DELETE FROM events WHERE id = $1 RETURNING *", [id]);
+    // 1️⃣ Preveri, ali dogodek obstaja
+    const eventCheck = await pool.query(
+      `SELECT id, organizer_id FROM events WHERE id = $1`,
+      [id]
+    );
 
-    if (result.rows.length === 0) {
+    if (eventCheck.rows.length === 0) {
       return res.status(404).json({ message: "Dogodek ni bil najden!" });
     }
+
+    const event = eventCheck.rows[0];
+
+    // 2️⃣ Preveri uporabnika, ki poskuša izbrisati dogodek
+    const userCheck = await pool.query(
+      `SELECT id, role FROM users WHERE id = $1`,
+      [organizer_id]
+    );
+
+    if (userCheck.rows.length === 0) {
+      return res.status(404).json({ message: "Uporabnik ne obstaja!" });
+    }
+
+    const { role } = userCheck.rows[0];
+
+    // 3️⃣ Dovoli samo, če je admin ali lastnik dogodka
+    if (role !== "admin" && event.organizer_id !== parseInt(organizer_id)) {
+      return res.status(403).json({
+        message: "Samo admin ali organizator, ki je ustvaril dogodek, ga lahko izbriše!",
+      });
+    }
+
+    // 4️⃣ Izbriši dogodek
+    const result = await pool.query(
+      `DELETE FROM events WHERE id = $1 RETURNING *`,
+      [id]
+    );
 
     res.status(200).json({
       message: "Dogodek uspešno izbrisan!",
@@ -199,5 +275,6 @@ router.delete("/:id", async (req, res, next) => {
     next(err);
   }
 });
+
 
 export default router;

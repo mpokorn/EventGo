@@ -14,7 +14,7 @@ router.get("/", async (req, res, next) => {
       SELECT 
         w.id,
         w.user_id,
-        u.name AS user_name,
+        (u.first_name || ' ' || u.last_name) AS user_name,
         u.email AS user_email,
         w.event_id,
         e.title AS event_title,
@@ -24,8 +24,8 @@ router.get("/", async (req, res, next) => {
       JOIN users u ON w.user_id = u.id
       JOIN events e ON w.event_id = e.id
     `;
-    const params = [];
 
+    const params = [];
     if (event_id) {
       query += ` WHERE w.event_id = $1`;
       params.push(event_id);
@@ -37,9 +37,21 @@ router.get("/", async (req, res, next) => {
     query += ` ORDER BY w.joined_at ASC;`;
 
     const result = await pool.query(query, params);
-    res.status(200).json(result.rows);
+
+    if (result.rowCount === 0) {
+      return res.status(200).json({
+        message: "Ni najdenih vnosov na čakalni listi.",
+        waitlist: [],
+      });
+    }
+
+    res.status(200).json({
+      message: "Uspešno pridobljeni vnosi čakalne liste.",
+      total_entries: result.rowCount,
+      waitlist: result.rows,
+    });
   } catch (err) {
-    console.error("Napaka pri GET /waitlist:", err);
+    console.error("❌ Napaka pri GET /waitlist:", err);
     next(err);
   }
 });
@@ -55,22 +67,23 @@ router.get("/event/:event_id", async (req, res, next) => {
   }
 
   try {
-    // Check if event exists
+    // ✅ Check if event exists
     const eventCheck = await pool.query(
       `SELECT id, title FROM events WHERE id = $1;`,
       [event_id]
     );
+
     if (eventCheck.rowCount === 0) {
       return res.status(404).json({ message: "Dogodek ne obstaja!" });
     }
 
-    // Query waitlist entries
+    // ✅ Fetch waitlist entries
     const result = await pool.query(
       `
       SELECT 
         w.id,
         w.user_id,
-        u.name AS user_name,
+        (u.first_name || ' ' || u.last_name) AS user_name,
         u.email,
         w.joined_at
       FROM waitlist w
@@ -81,15 +94,13 @@ router.get("/event/:event_id", async (req, res, next) => {
       [event_id]
     );
 
-    // If waitlist empty
     if (result.rowCount === 0) {
       return res.status(200).json({
-        message: `Čakalna lista za dogodek "${eventCheck.rows[0].title}" je trenutno prazna.`,
+        message: `Čakalna lista za dogodek "${eventCheck.rows[0].title}" je prazna.`,
         waitlist: [],
       });
     }
 
-    // Otherwise return the waitlist users
     res.status(200).json({
       event_id: event_id,
       event_title: eventCheck.rows[0].title,
@@ -97,11 +108,10 @@ router.get("/event/:event_id", async (req, res, next) => {
       waitlist: result.rows,
     });
   } catch (err) {
-    console.error("Napaka pri GET /waitlist/event/:event_id:", err);
+    console.error("❌ Napaka pri GET /waitlist/event/:event_id:", err);
     next(err);
   }
 });
-
 
 /* --------------------------------------
    🟢 Add a user to the waitlist for an event
@@ -110,33 +120,37 @@ router.post("/", async (req, res, next) => {
   const { user_id, event_id } = req.body;
 
   if (!user_id || !event_id) {
-    return res.status(400).json({ message: "Manjkajo podatki: user_id in event_id sta obvezna!" });
+    return res.status(400).json({
+      message: "Manjkajo podatki: user_id in event_id sta obvezna!",
+    });
   }
 
   try {
-    // Validate user and event exist
-    const userCheck = await pool.query(`SELECT id FROM users WHERE id = $1;`, [user_id]);
+    // ✅ Validate user and event exist
+    const userCheck = await pool.query(`SELECT id, first_name, last_name, email FROM users WHERE id = $1;`, [user_id]);
     if (userCheck.rowCount === 0) {
       return res.status(404).json({ message: "Uporabnik ne obstaja!" });
     }
 
-    const eventCheck = await pool.query(`SELECT id FROM events WHERE id = $1;`, [event_id]);
+    const eventCheck = await pool.query(`SELECT id, title, start_datetime FROM events WHERE id = $1;`, [event_id]);
     if (eventCheck.rowCount === 0) {
       return res.status(404).json({ message: "Dogodek ne obstaja!" });
     }
 
-    // Check if user already on waitlist for this event
+    // ✅ Prevent duplicate entries
     const existing = await pool.query(
       `SELECT id FROM waitlist WHERE user_id = $1 AND event_id = $2;`,
       [user_id, event_id]
     );
 
     if (existing.rowCount > 0) {
-      return res.status(409).json({ message: "Uporabnik je že na čakalni listi za ta dogodek!" });
+      return res.status(409).json({
+        message: "Uporabnik je že na čakalni listi za ta dogodek!",
+      });
     }
 
-    // Add new entry
-    const result = await pool.query(
+    // ✅ Insert into waitlist
+    const inserted = await pool.query(
       `
       INSERT INTO waitlist (user_id, event_id)
       VALUES ($1, $2)
@@ -145,12 +159,34 @@ router.post("/", async (req, res, next) => {
       [user_id, event_id]
     );
 
+    const entry = inserted.rows[0];
+
+    // ✅ Get joined details
+    const fullDetails = await pool.query(
+      `
+      SELECT 
+        w.id,
+        w.user_id,
+        (u.first_name || ' ' || u.last_name) AS user_name,
+        u.email AS user_email,
+        w.event_id,
+        e.title AS event_title,
+        e.start_datetime,
+        w.joined_at
+      FROM waitlist w
+      JOIN users u ON w.user_id = u.id
+      JOIN events e ON w.event_id = e.id
+      WHERE w.id = $1;
+      `,
+      [entry.id]
+    );
+
     res.status(201).json({
       message: "Uporabnik uspešno dodan na čakalno listo!",
-      entry: result.rows[0],
+      entry: fullDetails.rows[0],
     });
   } catch (err) {
-    console.error("Napaka pri POST /waitlist:", err);
+    console.error("❌ Napaka pri POST /waitlist:", err);
     next(err);
   }
 });
@@ -172,7 +208,7 @@ router.delete("/:id", async (req, res, next) => {
     );
 
     if (result.rowCount === 0) {
-      return res.status(404).json({ message: "Uporabnik ni bil najden na čakalni listi!" });
+      return res.status(404).json({ message: "Vnos na čakalni listi ni bil najden!" });
     }
 
     res.status(200).json({
@@ -180,16 +216,20 @@ router.delete("/:id", async (req, res, next) => {
       deleted: result.rows[0],
     });
   } catch (err) {
-    console.error("Napaka pri DELETE /waitlist/:id:", err);
+    console.error("❌ Napaka pri DELETE /waitlist/:id:", err);
     next(err);
   }
 });
 
 /* --------------------------------------
-   🟢 Optional: Remove user from waitlist by event & user
+   🟢 Remove user from waitlist by event & user
 -------------------------------------- */
 router.delete("/event/:event_id/user/:user_id", async (req, res, next) => {
   const { event_id, user_id } = req.params;
+
+  if (isNaN(event_id) || isNaN(user_id)) {
+    return res.status(400).json({ message: "ID dogodka in uporabnika morata biti števili." });
+  }
 
   try {
     const result = await pool.query(
@@ -198,7 +238,9 @@ router.delete("/event/:event_id/user/:user_id", async (req, res, next) => {
     );
 
     if (result.rowCount === 0) {
-      return res.status(404).json({ message: "Vnos na čakalni listi ni bil najden!" });
+      return res.status(404).json({
+        message: "Uporabnik ni bil najden na čakalni listi za ta dogodek!",
+      });
     }
 
     res.status(200).json({
@@ -206,7 +248,7 @@ router.delete("/event/:event_id/user/:user_id", async (req, res, next) => {
       deleted: result.rows[0],
     });
   } catch (err) {
-    console.error("Napaka pri DELETE /waitlist/event/:event_id/user/:user_id:", err);
+    console.error("❌ Napaka pri DELETE /waitlist/event/:event_id/user/:user_id:", err);
     next(err);
   }
 });

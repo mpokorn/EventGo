@@ -164,8 +164,6 @@ router.delete("/:id", async (req, res, next) => {
   }
 });
 
-
-
 router.put("/:id/recount", async (req, res, next) => {
   const { id } = req.params;
   await pool.query(`

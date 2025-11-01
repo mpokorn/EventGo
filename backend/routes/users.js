@@ -12,7 +12,7 @@ router.get("/", async (req, res, next) => {
   try {
     const result = await pool.query(
       `
-      SELECT id, name, email, role, created_at
+      SELECT id, first_name, last_name, email, role, created_at
       FROM users
       ${role ? "WHERE role = $1" : ""}
       ORDER BY created_at DESC;
@@ -20,9 +20,16 @@ router.get("/", async (req, res, next) => {
       role ? [role] : []
     );
 
-    res.status(200).json(result.rows);
+    if (result.rows.length === 0) {
+      return res.status(200).json({ message: "Ni najdenih uporabnikov.", users: [] });
+    }
+
+    res.status(200).json({
+      message: role ? `Najdeni uporabniki z vlogo '${role}'.` : "Najdeni vsi uporabniki.",
+      users: result.rows,
+    });
   } catch (err) {
-    console.error("Napaka pri GET /users:", err);
+    console.error("❌ Napaka pri GET /users:", err);
     next(err);
   }
 });
@@ -39,7 +46,7 @@ router.get("/:id", async (req, res, next) => {
   try {
     const result = await pool.query(
       `
-      SELECT id, name, email, role, created_at
+      SELECT id, first_name, last_name, email, role, created_at
       FROM users
       WHERE id = $1;
       `,
@@ -50,9 +57,24 @@ router.get("/:id", async (req, res, next) => {
       return res.status(404).json({ message: `Uporabnik z ID ${id} ne obstaja.` });
     }
 
-    res.status(200).json(result.rows[0]);
+    // Optional: get some summary info (counts)
+    const counts = await pool.query(
+      `
+      SELECT 
+        (SELECT COUNT(*) FROM events WHERE organizer_id = $1) AS event_count,
+        (SELECT COUNT(*) FROM transactions WHERE user_id = $1) AS transaction_count,
+        (SELECT COUNT(*) FROM tickets WHERE user_id = $1) AS ticket_count,
+        (SELECT COUNT(*) FROM waitlist WHERE user_id = $1) AS waitlist_count;
+      `,
+      [id]
+    );
+
+    res.status(200).json({
+      user: result.rows[0],
+      related_counts: counts.rows[0],
+    });
   } catch (err) {
-    console.error("Napaka pri GET /users/:id:", err);
+    console.error("❌ Napaka pri GET /users/:id:", err);
     next(err);
   }
 });
@@ -61,29 +83,41 @@ router.get("/:id", async (req, res, next) => {
    🟢 Add new user
 -------------------------------------- */
 router.post("/", async (req, res, next) => {
-  const { name, email, password, role } = req.body;
+  const { first_name, last_name, email, password, role } = req.body;
 
-  if (!name || !email || !password) {
-    return res.status(400).json({ message: "Manjkajo potrebni podatki za dodajanje uporabnika!" });
+  // ✅ Basic field validation
+  if (!first_name || !last_name || !email || !password) {
+    return res.status(400).json({
+      message: "Manjkajo potrebni podatki za dodajanje uporabnika!",
+    });
+  }
+
+  // ✅ Allowed roles based on your user_role enum
+  const validRoles = ["user", "organizer", "admin"];
+  if (role && !validRoles.includes(role)) {
+    return res.status(400).json({
+      message: `Neveljavna vloga '${role}'. Dovoljene vloge so: ${validRoles.join(", ")}.`,
+    });
   }
 
   try {
-    // Check for duplicate email
+    // ✅ Check for duplicate email
     const emailCheck = await pool.query(`SELECT id FROM users WHERE email = $1;`, [email]);
     if (emailCheck.rowCount > 0) {
       return res.status(400).json({ message: "Uporabnik s tem e-naslovom že obstaja!" });
     }
 
-    // In production: hash password here before saving
+    // ⚠️ In production, hash the password (for now plain-text)
     // const hashedPassword = await bcrypt.hash(password, 10);
 
+    // ✅ Insert safely with enum casting
     const result = await pool.query(
       `
-      INSERT INTO users (name, email, password, role)
-      VALUES ($1, $2, $3, COALESCE($4, 'user'))
-      RETURNING id, name, email, role, created_at;
+      INSERT INTO users (first_name, last_name, email, password, role)
+      VALUES ($1, $2, $3, $4, COALESCE($5, 'user')::user_role)
+      RETURNING id, first_name, last_name, email, role, created_at;
       `,
-      [name, email, password, role]
+      [first_name, last_name, email, password, role]
     );
 
     res.status(201).json({
@@ -91,7 +125,7 @@ router.post("/", async (req, res, next) => {
       user: result.rows[0],
     });
   } catch (err) {
-    console.error("Napaka pri POST /users:", err);
+    console.error("❌ Napaka pri POST /users:", err);
     next(err);
   }
 });
@@ -101,21 +135,23 @@ router.post("/", async (req, res, next) => {
 -------------------------------------- */
 router.put("/:id", async (req, res, next) => {
   const id = parseInt(req.params.id);
-  const { name, email, password, role } = req.body;
+  const { first_name, last_name, email, password, role } = req.body;
 
   if (isNaN(id)) {
     return res.status(400).json({ message: "ID mora biti število." });
   }
 
   try {
-    // Optional: prevent duplicate emails on update
+    // Prevent duplicate email conflicts
     if (email) {
       const emailCheck = await pool.query(
         `SELECT id FROM users WHERE email = $1 AND id <> $2;`,
         [email, id]
       );
       if (emailCheck.rowCount > 0) {
-        return res.status(400).json({ message: "Ta e-naslov je že v uporabi pri drugem uporabniku!" });
+        return res
+          .status(400)
+          .json({ message: "Ta e-naslov je že v uporabi pri drugem uporabniku!" });
       }
     }
 
@@ -123,14 +159,15 @@ router.put("/:id", async (req, res, next) => {
       `
       UPDATE users
       SET 
-        name = COALESCE($1, name),
-        email = COALESCE($2, email),
-        password = COALESCE($3, password),
-        role = COALESCE($4, role)
-      WHERE id = $5
-      RETURNING id, name, email, role, created_at;
+        first_name = COALESCE($1, first_name),
+        last_name = COALESCE($2, last_name),
+        email = COALESCE($3, email),
+        password = COALESCE($4, password),
+        role = COALESCE($5, role)
+      WHERE id = $6
+      RETURNING id, first_name, last_name, email, role, created_at;
       `,
-      [name, email, password, role, id]
+      [first_name, last_name, email, password, role, id]
     );
 
     if (result.rows.length === 0) {
@@ -142,13 +179,13 @@ router.put("/:id", async (req, res, next) => {
       user: result.rows[0],
     });
   } catch (err) {
-    console.error("Napaka pri PUT /users/:id:", err);
+    console.error("❌ Napaka pri PUT /users/:id:", err);
     next(err);
   }
 });
 
 /* --------------------------------------
-   🟢 Delete user
+   🟢 Delete user (with relational checks)
 -------------------------------------- */
 router.delete("/:id", async (req, res, next) => {
   const id = parseInt(req.params.id);
@@ -158,38 +195,55 @@ router.delete("/:id", async (req, res, next) => {
   }
 
   try {
-    // Optional: prevent deletion if they have events or transactions
-    const check = await pool.query(
+    // ✅ Check if user exists
+    const userCheck = await pool.query(`SELECT id, first_name, last_name FROM users WHERE id = $1;`, [id]);
+    if (userCheck.rowCount === 0) {
+      return res.status(404).json({ message: "Uporabnik ni bil najden!" });
+    }
+
+    // ✅ Check linked records
+    const relCheck = await pool.query(
       `
       SELECT 
         (SELECT COUNT(*) FROM events WHERE organizer_id = $1) AS event_count,
-        (SELECT COUNT(*) FROM transactions WHERE user_id = $1) AS transaction_count;
+        (SELECT COUNT(*) FROM transactions WHERE user_id = $1) AS transaction_count,
+        (SELECT COUNT(*) FROM tickets WHERE user_id = $1 OR owner_id = $1) AS ticket_count,
+        (SELECT COUNT(*) FROM waitlist WHERE user_id = $1) AS waitlist_count;
       `,
       [id]
     );
 
-    const { event_count, transaction_count } = check.rows[0];
-    if (parseInt(event_count) > 0 || parseInt(transaction_count) > 0) {
+    const { event_count, transaction_count, ticket_count, waitlist_count } = relCheck.rows[0];
+
+    if (
+      parseInt(event_count) > 0 ||
+      parseInt(transaction_count) > 0 ||
+      parseInt(ticket_count) > 0 ||
+      parseInt(waitlist_count) > 0
+    ) {
       return res.status(400).json({
-        message: "Uporabnika ni mogoče izbrisati, ker ima povezane dogodke ali transakcije.",
+        message:
+          "Uporabnika ni mogoče izbrisati, ker ima povezane dogodke, transakcije, vozovnice ali čakalno listo.",
+        relations: relCheck.rows[0],
       });
     }
 
+    // ✅ Safe to delete
     const result = await pool.query(
-      "DELETE FROM users WHERE id = $1 RETURNING id, name, email, role, created_at;",
+      `
+      DELETE FROM users 
+      WHERE id = $1 
+      RETURNING id, first_name, last_name, email, role, created_at;
+      `,
       [id]
     );
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ message: "Uporabnik ni bil najden!" });
-    }
 
     res.status(200).json({
       message: "Uporabnik uspešno izbrisan!",
       deleted: result.rows[0],
     });
   } catch (err) {
-    console.error("Napaka pri DELETE /users/:id:", err);
+    console.error("❌ Napaka pri DELETE /users/:id:", err);
     next(err);
   }
 });
