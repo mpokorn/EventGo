@@ -167,6 +167,77 @@ router.get("/user/:user_id", async (req, res, next) => {
 
 
 /* --------------------------------------
+   🟢 GET all tickets for a specific event
+   (for organizer overview)
+-------------------------------------- */
+router.get("/event/:event_id", async (req, res, next) => {
+  const event_id = parseInt(req.params.event_id);
+
+  if (isNaN(event_id)) {
+    return res.status(400).json({ message: "ID dogodka mora biti število." });
+  }
+
+  try {
+    // ✅ Preveri, če dogodek obstaja
+    const eventCheck = await pool.query(
+      `SELECT id, title FROM events WHERE id = $1;`,
+      [event_id]
+    );
+
+    if (eventCheck.rowCount === 0) {
+      return res.status(404).json({ message: "Dogodek ne obstaja!" });
+    }
+
+    // 🎟️ Pridobi vse vstopnice za ta dogodek
+    const result = await pool.query(
+      `
+      SELECT 
+        t.id,
+        t.user_id,
+        (u.first_name || ' ' || u.last_name) AS buyer_name,
+        t.owner_id,
+        (o.first_name || ' ' || o.last_name) AS owner_name,
+        t.ticket_type_id,
+        tt.type AS ticket_type,
+        tt.price AS ticket_price,
+        t.status,
+        t.issued_at
+      FROM tickets t
+      JOIN users u ON t.user_id = u.id
+      LEFT JOIN users o ON t.owner_id = o.id
+      LEFT JOIN ticket_types tt ON t.ticket_type_id = tt.id
+      WHERE t.event_id = $1
+      ORDER BY t.issued_at DESC;
+      `,
+      [event_id]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(200).json({
+        message: `Dogodek "${eventCheck.rows[0].title}" trenutno nima prodanih vstopnic.`,
+        event_id,
+        tickets: [],
+      });
+    }
+
+    res.status(200).json({
+      message: `Uspešno pridobljene vstopnice za dogodek "${eventCheck.rows[0].title}".`,
+      event_id,
+      event_title: eventCheck.rows[0].title,
+      total_tickets: result.rowCount,
+      tickets: result.rows,
+    });
+  } catch (err) {
+    console.error("❌ Napaka pri GET /tickets/event/:event_id:", err);
+    next(err);
+  }
+});
+
+
+
+
+
+/* --------------------------------------
    🟢 Purchase new tickets (create transaction + tickets)
 -------------------------------------- */
 router.post("/", async (req, res, next) => {
