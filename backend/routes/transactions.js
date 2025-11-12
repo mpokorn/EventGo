@@ -4,7 +4,7 @@ import pool from "../db.js";
 const router = express.Router();
 
 /* --------------------------------------
-   🟢 Get all transactions (with buyer + summary)
+    Get all transactions (with buyer + summary)
 -------------------------------------- */
 router.get("/", async (req, res, next) => {
   try {
@@ -34,18 +34,18 @@ router.get("/", async (req, res, next) => {
 });
 
 /* --------------------------------------
-   🟢 Get all transactions for a specific user
+    Get all transactions for a specific user
 -------------------------------------- */
 router.get("/user/:id", async (req, res, next) => {
   const userId = parseInt(req.params.id);
 
-  // ✅ Basic input validation
+  //  Basic input validation
   if (isNaN(userId)) {
     return res.status(400).json({ message: "ID mora biti število." });
   }
 
   try {
-    // ✅ Check if user exists
+    //  Check if user exists
     const userCheck = await pool.query(
       `SELECT id, first_name, last_name FROM users WHERE id = $1;`,
       [userId]
@@ -57,7 +57,7 @@ router.get("/user/:id", async (req, res, next) => {
       });
     }
 
-    // ✅ Fetch user transactions
+    //  Fetch user transactions
     const transactionsResult = await pool.query(
       `
       SELECT 
@@ -80,7 +80,7 @@ router.get("/user/:id", async (req, res, next) => {
       [userId]
     );
 
-    // ✅ If no transactions found
+    //  If no transactions found
     if (transactionsResult.rows.length === 0) {
       return res.status(200).json({
         message: `Uporabnik ${userCheck.rows[0].first_name} ${userCheck.rows[0].last_name} trenutno nima nobenih transakcij.`,
@@ -88,7 +88,7 @@ router.get("/user/:id", async (req, res, next) => {
       });
     }
 
-    // ✅ Success: return user's transactions
+    //  Success: return user's transactions
     res.status(200).json({
       message: `Najdene transakcije za uporabnika ${userCheck.rows[0].first_name} ${userCheck.rows[0].last_name}.`,
       transactions: transactionsResult.rows,
@@ -102,7 +102,7 @@ router.get("/user/:id", async (req, res, next) => {
 
 
 /* --------------------------------------
-   🟢 Get one transaction with ticket details
+    Get one transaction with ticket details
 -------------------------------------- */
 router.get("/:id", async (req, res, next) => {
   const id = parseInt(req.params.id);
@@ -157,13 +157,13 @@ router.get("/:id", async (req, res, next) => {
 
     res.status(200).json(transaction);
   } catch (err) {
-    console.error("❌ Napaka pri GET /transactions/:id:", err);
+    console.error(" Napaka pri GET /transactions/:id:", err);
     next(err);
   }
 });
 
 /* --------------------------------------
-   🟢 Create new transaction manually (optional)
+    Create new transaction manually (optional)
 -------------------------------------- */
 router.post("/", async (req, res, next) => {
   const { user_id, total_price, status, payment_method, reference_code } = req.body;
@@ -187,13 +187,13 @@ router.post("/", async (req, res, next) => {
       transaction: result.rows[0],
     });
   } catch (err) {
-    console.error("❌ Napaka pri POST /transactions:", err);
+    console.error(" Napaka pri POST /transactions:", err);
     next(err);
   }
 });
 
 /* --------------------------------------
-   🟢 Delete a transaction
+    Delete a transaction
 -------------------------------------- */
 router.delete("/:id", async (req, res, next) => {
   const id = parseInt(req.params.id);
@@ -217,7 +217,7 @@ router.delete("/:id", async (req, res, next) => {
       deleted: result.rows[0],
     });
   } catch (err) {
-    console.error("❌ Napaka pri DELETE /transactions/:id:", err);
+    console.error(" Napaka pri DELETE /transactions/:id:", err);
     next(err);
   }
 });

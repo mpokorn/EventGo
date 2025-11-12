@@ -4,7 +4,7 @@ import pool from "../db.js";
 const router = express.Router();
 
 /* --------------------------------------
-   🟢 Get all ticket types for a specific event
+    Get all ticket types for a specific event
 -------------------------------------- */
 router.get("/:event_id", async (req, res, next) => {
   const { event_id } = req.params;
@@ -45,7 +45,7 @@ router.get("/:event_id", async (req, res, next) => {
 });
 
 /* --------------------------------------
-   🟢 Add new ticket type (admin/organizer)
+    Add new ticket type (admin/organizer)
 -------------------------------------- */
 router.post("/", async (req, res, next) => {
   const { event_id, type, price, total_tickets } = req.body;
@@ -57,7 +57,7 @@ router.post("/", async (req, res, next) => {
   }
 
   try {
-    // ✅ Verify that the event exists before creating ticket types
+    // Verify that the event exists before creating ticket types
     const eventCheck = await pool.query(`SELECT id FROM events WHERE id = $1`, [event_id]);
     if (eventCheck.rowCount === 0) {
       return res.status(404).json({ message: "Dogodek s tem ID-jem ne obstaja!" });
@@ -83,7 +83,7 @@ router.post("/", async (req, res, next) => {
 });
 
 /* --------------------------------------
-   🟢 Update existing ticket type
+    Update existing ticket type
 -------------------------------------- */
 router.patch("/:id", async (req, res, next) => {
   const { id } = req.params;
@@ -123,7 +123,7 @@ router.patch("/:id", async (req, res, next) => {
 });
 
 /* --------------------------------------
-   🟢 Delete ticket type (admin/organizer)
+    Delete ticket type (admin/organizer)
 -------------------------------------- */
 router.delete("/:id", async (req, res, next) => {
   const { id } = req.params;

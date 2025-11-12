@@ -4,7 +4,7 @@ import pool from "../db.js";
 const router = express.Router();
 
 /* --------------------------------------
-   🟢 Get all waitlist entries (optional filters)
+  Get all waitlist entries (optional filters)
 -------------------------------------- */
 router.get("/", async (req, res, next) => {
   const { event_id, user_id } = req.query;
@@ -51,13 +51,13 @@ router.get("/", async (req, res, next) => {
       waitlist: result.rows,
     });
   } catch (err) {
-    console.error("❌ Napaka pri GET /waitlist:", err);
+    console.error(" Napaka pri GET /waitlist:", err);
     next(err);
   }
 });
 
 /* --------------------------------------
-   🟢 Get all users on the waitlist for a specific event
+    Get all users on the waitlist for a specific event
 -------------------------------------- */
 router.get("/event/:event_id", async (req, res, next) => {
   const { event_id } = req.params;
@@ -67,7 +67,7 @@ router.get("/event/:event_id", async (req, res, next) => {
   }
 
   try {
-    // ✅ Check if event exists
+    //  Check if event exists
     const eventCheck = await pool.query(
       `SELECT id, title FROM events WHERE id = $1;`,
       [event_id]
@@ -77,7 +77,7 @@ router.get("/event/:event_id", async (req, res, next) => {
       return res.status(404).json({ message: "Dogodek ne obstaja!" });
     }
 
-    // ✅ Fetch waitlist entries
+    //  Fetch waitlist entries
     const result = await pool.query(
       `
       SELECT 
@@ -108,13 +108,13 @@ router.get("/event/:event_id", async (req, res, next) => {
       waitlist: result.rows,
     });
   } catch (err) {
-    console.error("❌ Napaka pri GET /waitlist/event/:event_id:", err);
+    console.error(" Napaka pri GET /waitlist/event/:event_id:", err);
     next(err);
   }
 });
 
 /* --------------------------------------
-   🟢 Add a user to the waitlist for an event
+    Add a user to the waitlist for an event
 -------------------------------------- */
 router.post("/", async (req, res, next) => {
   const { user_id, event_id } = req.body;
@@ -126,7 +126,7 @@ router.post("/", async (req, res, next) => {
   }
 
   try {
-    // ✅ Validate user and event exist
+    //  Validate user and event exist
     const userCheck = await pool.query(`SELECT id, first_name, last_name, email FROM users WHERE id = $1;`, [user_id]);
     if (userCheck.rowCount === 0) {
       return res.status(404).json({ message: "Uporabnik ne obstaja!" });
@@ -149,7 +149,7 @@ router.post("/", async (req, res, next) => {
       });
     }
 
-    // ✅ Insert into waitlist
+    // Insert into waitlist
     const inserted = await pool.query(
       `
       INSERT INTO waitlist (user_id, event_id)
@@ -161,7 +161,7 @@ router.post("/", async (req, res, next) => {
 
     const entry = inserted.rows[0];
 
-    // ✅ Get joined details
+    // Get joined details
     const fullDetails = await pool.query(
       `
       SELECT 
@@ -186,7 +186,7 @@ router.post("/", async (req, res, next) => {
       entry: fullDetails.rows[0],
     });
   } catch (err) {
-    console.error("❌ Napaka pri POST /waitlist:", err);
+    console.error(" Napaka pri POST /waitlist:", err);
     next(err);
   }
 });
@@ -216,13 +216,13 @@ router.delete("/:id", async (req, res, next) => {
       deleted: result.rows[0],
     });
   } catch (err) {
-    console.error("❌ Napaka pri DELETE /waitlist/:id:", err);
+    console.error("Napaka pri DELETE /waitlist/:id:", err);
     next(err);
   }
 });
 
 /* --------------------------------------
-   🟢 Remove user from waitlist by event & user
+    Remove user from waitlist by event & user
 -------------------------------------- */
 router.delete("/event/:event_id/user/:user_id", async (req, res, next) => {
   const { event_id, user_id } = req.params;
@@ -248,7 +248,7 @@ router.delete("/event/:event_id/user/:user_id", async (req, res, next) => {
       deleted: result.rows[0],
     });
   } catch (err) {
-    console.error("❌ Napaka pri DELETE /waitlist/event/:event_id/user/:user_id:", err);
+    console.error(" Napaka pri DELETE /waitlist/event/:event_id/user/:user_id:", err);
     next(err);
   }
 });

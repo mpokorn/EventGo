@@ -1,10 +1,14 @@
 import express from "express";
 import pool from "../db.js";
+import { requireAuth } from "../middleware/auth.js";
 
 const router = express.Router();
 
+// Protect all ticket routes
+router.use(requireAuth);
+
 /* --------------------------------------
-   🟢 GET all tickets (with full details)
+    GET all tickets (with full details)
 -------------------------------------- */
 router.get("/", async (req, res, next) => {
   try {
@@ -44,13 +48,13 @@ router.get("/", async (req, res, next) => {
       tickets: result.rows,
     });
   } catch (err) {
-    console.error("❌ Napaka pri GET /tickets:", err);
+    console.error(" Napaka pri GET /tickets:", err);
     next(err);
   }
 });
 
 /* --------------------------------------
-   🟢 GET single ticket by ID
+    GET single ticket by ID
 -------------------------------------- */
 router.get("/:id", async (req, res, next) => {
   const id = parseInt(req.params.id);
@@ -91,13 +95,13 @@ router.get("/:id", async (req, res, next) => {
 
     res.status(200).json(result.rows[0]);
   } catch (err) {
-    console.error("❌ Napaka pri GET /tickets/:id:", err);
+    console.error(" Napaka pri GET /tickets/:id:", err);
     next(err);
   }
 });
 
 /* --------------------------------------
-   🟢 GET all tickets for a specific user
+    GET all tickets for a specific user
    (as buyer or current owner)
 -------------------------------------- */
 router.get("/user/:user_id", async (req, res, next) => {
@@ -160,14 +164,14 @@ router.get("/user/:user_id", async (req, res, next) => {
       tickets: result.rows,
     });
   } catch (err) {
-    console.error("❌ Napaka pri GET /tickets/user/:user_id:", err);
+    console.error(" Napaka pri GET /tickets/user/:user_id:", err);
     next(err);
   }
 });
 
 
 /* --------------------------------------
-   🟢 GET all tickets for a specific event
+    GET all tickets for a specific event
    (for organizer overview)
 -------------------------------------- */
 router.get("/event/:event_id", async (req, res, next) => {
@@ -178,7 +182,7 @@ router.get("/event/:event_id", async (req, res, next) => {
   }
 
   try {
-    // ✅ Preveri, če dogodek obstaja
+    //  Preveri, če dogodek obstaja
     const eventCheck = await pool.query(
       `SELECT id, title FROM events WHERE id = $1;`,
       [event_id]
@@ -188,7 +192,7 @@ router.get("/event/:event_id", async (req, res, next) => {
       return res.status(404).json({ message: "Dogodek ne obstaja!" });
     }
 
-    // 🎟️ Pridobi vse vstopnice za ta dogodek
+    //  Pridobi vse vstopnice za ta dogodek
     const result = await pool.query(
       `
       SELECT 
@@ -228,7 +232,7 @@ router.get("/event/:event_id", async (req, res, next) => {
       tickets: result.rows,
     });
   } catch (err) {
-    console.error("❌ Napaka pri GET /tickets/event/:event_id:", err);
+    console.error(" Napaka pri GET /tickets/event/:event_id:", err);
     next(err);
   }
 });
@@ -238,12 +242,13 @@ router.get("/event/:event_id", async (req, res, next) => {
 
 
 /* --------------------------------------
-   🟢 Purchase new tickets (create transaction + tickets)
+    Purchase new tickets (create transaction + tickets)
 -------------------------------------- */
 router.post("/", async (req, res, next) => {
-  const { user_id, event_id, ticket_type_id, quantity = 1, payment_method } = req.body;
+  const { event_id, ticket_type_id, quantity = 1, payment_method } = req.body;
+  const user_id = req.user.id; // Get user ID from authenticated token
 
-  if (!user_id || !event_id || !ticket_type_id || !quantity) {
+  if (!event_id || !ticket_type_id || !quantity) {
     return res.status(400).json({ message: "Manjkajo podatki za nakup vstopnic!" });
   }
 
@@ -282,7 +287,7 @@ router.post("/", async (req, res, next) => {
     );
     const transaction_id = txResult.rows[0].id;
 
-    // 🎟️ Create tickets
+    //  Create tickets
     const insertPromises = [];
     for (let i = 0; i < quantity; i++) {
       insertPromises.push(
@@ -319,13 +324,13 @@ router.post("/", async (req, res, next) => {
       payment_method: payment_method || "card",
     });
   } catch (err) {
-    console.error("❌ Napaka pri POST /tickets:", err);
+    console.error(" Napaka pri POST /tickets:", err);
     next(err);
   }
 });
 
 /* --------------------------------------
-   🟢 Refund ticket
+    Refund ticket
 -------------------------------------- */
 router.put("/:id/refund", async (req, res, next) => {
   const id = parseInt(req.params.id);
@@ -351,13 +356,13 @@ router.put("/:id/refund", async (req, res, next) => {
       ticket: result.rows[0],
     });
   } catch (err) {
-    console.error("❌ Napaka pri PUT /tickets/:id/refund:", err);
+    console.error(" Napaka pri PUT /tickets/:id/refund:", err);
     next(err);
   }
 });
 
 /* --------------------------------------
-   🟢 Delete ticket
+   Delete ticket
 -------------------------------------- */
 router.delete("/:id", async (req, res, next) => {
   const id = parseInt(req.params.id);
@@ -375,7 +380,7 @@ router.delete("/:id", async (req, res, next) => {
       deleted: result.rows[0],
     });
   } catch (err) {
-    console.error("❌ Napaka pri DELETE /tickets/:id:", err);
+    console.error(" Napaka pri DELETE /tickets/:id:", err);
     next(err);
   }
 });
