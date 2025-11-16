@@ -16,6 +16,8 @@ import Waitlist from "./pages/Waitlist";
 import OrganizerDashboard from "./pages/organizer/OrganizerDashboard";
 import OrganizerEvents from "./pages/organizer/OrganizerEvents";
 import OrganizerCreateEvent from "./pages/organizer/OrganizerCreateEvent";
+import OrganizerEditEvent from "./pages/organizer/OrganizerEditEvent";
+
 
 import Header from "./components/Header";
 import { AuthProvider } from "./context/AuthContext";
@@ -54,6 +56,8 @@ function Layout() {
           <Route path="/organizer" element={<OrganizerDashboard />} />
           <Route path="/organizer/events" element={<OrganizerEvents />} />
           <Route path="/organizer/events/create" element={<OrganizerCreateEvent />} />
+          <Route path="/organizer/events/:id/edit" element={<OrganizerEditEvent />} />
+
         </Routes>
       </main>
     </div>

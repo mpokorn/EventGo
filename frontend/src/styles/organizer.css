@@ -158,3 +158,50 @@ textarea:focus {
   gap: 0.7rem;
   margin-top: 1rem;
 }
+
+
+.org-btn {
+  padding: 0.6rem 1.2rem;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: inline-block;
+  text-align: center;
+}
+
+.org-btn.small {
+  padding: 0.45rem 0.9rem;
+  font-size: 0.85rem;
+}
+
+.org-btn.primary {
+  background: linear-gradient(90deg, #7c3aed, #6366f1);
+  color: white;
+  border: none;
+}
+
+.org-btn.primary:hover {
+  filter: brightness(1.1);
+  transform: translateY(-2px);
+}
+
+.org-btn.ghost {
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.15);
+  color: #cbd5e1;
+}
+
+.org-btn.ghost:hover {
+  background: rgba(255,255,255,0.1);
+}
+
+.org-btn.danger {
+  background: #dc2626;
+  color: white;
+  border: none;
+}
+
+.org-btn.danger:hover {
+  background: #ef4444;
+}
