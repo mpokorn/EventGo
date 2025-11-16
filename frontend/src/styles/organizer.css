@@ -205,3 +205,11 @@ textarea:focus {
 .org-btn.danger:hover {
   background: #ef4444;
 }
+
+.org-error {
+  color: #f87171;
+  background: rgba(255, 0, 0, 0.15);
+  padding: 1rem;
+  border-radius: 10px;
+  margin-bottom: 1rem;
+}

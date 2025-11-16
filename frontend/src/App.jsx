@@ -17,6 +17,8 @@ import OrganizerDashboard from "./pages/organizer/OrganizerDashboard";
 import OrganizerEvents from "./pages/organizer/OrganizerEvents";
 import OrganizerCreateEvent from "./pages/organizer/OrganizerCreateEvent";
 import OrganizerEditEvent from "./pages/organizer/OrganizerEditEvent";
+import OrganizerEventTickets from "./pages/organizer/OrganizerEventTickets";
+
 
 
 import Header from "./components/Header";
@@ -57,6 +59,7 @@ function Layout() {
           <Route path="/organizer/events" element={<OrganizerEvents />} />
           <Route path="/organizer/events/create" element={<OrganizerCreateEvent />} />
           <Route path="/organizer/events/:id/edit" element={<OrganizerEditEvent />} />
+          <Route path="/organizer/events/:id/tickets" element={<OrganizerEventTickets />} />
 
         </Routes>
       </main>

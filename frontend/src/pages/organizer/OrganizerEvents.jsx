@@ -91,7 +91,7 @@ export default function OrganizerEvents() {
                 </Link>
 
                 <Link
-                  to={`/organizer/tickets/${ev.id}`}
+                  to={`/organizer/events/${ev.id}/tickets`}
                   className="org-btn small ghost"
                 >
                   Tickets
