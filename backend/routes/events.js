@@ -32,6 +32,39 @@ router.get("/", async (req, res, next) => {
   }
 });
 
+
+/* --------------------------------------
+   GET all events for a specific organizer
+-------------------------------------- */
+router.get("/organizer/:organizerId", async (req, res, next) => {
+  const { organizerId } = req.params;
+
+  try {
+    const result = await pool.query(
+      `SELECT 
+          e.id,
+          e.title,
+          e.description,
+          e.start_datetime,
+          e.end_datetime,
+          e.location,
+          e.total_tickets,
+          e.tickets_sold,
+          e.created_at
+        FROM events e
+        WHERE e.organizer_id = $1
+        ORDER BY e.start_datetime ASC`,
+      [organizerId]
+    );
+
+    res.status(200).json(result.rows);
+  } catch (err) {
+    console.error("Error GET /events/organizer/:organizerId:", err);
+    next(err);
+  }
+});
+
+
 /* --------------------------------------
     GET single event + its ticket types
 -------------------------------------- */

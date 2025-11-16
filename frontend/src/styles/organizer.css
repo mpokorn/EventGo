@@ -1,60 +1,160 @@
-/* ======================================================
-   ORGANIZER DASHBOARD THEME (MATCH USER/AUTH COLORS)
-====================================================== */
-
-/* PAGE BACKGROUND — SAME AS AUTH */
-.organizer-theme {
-  background: linear-gradient(
-    180deg,
-    var(--auth-bg-start) 0%,
-    var(--auth-bg-end) 100%
-  ) !important;
+/* Make organizer card full-width compared to login card */
+.organizer-auth-card {
+  margin: 2rem auto;
+  width: 100%;
+  max-width: 900px;
 }
 
-/* SIDEBAR BACKGROUND — SAME AS USER DASHBOARD */
-.organizer-sidebar-bg {
-  background: rgba(17, 24, 39, 0.9) !important;
-  backdrop-filter: blur(16px);
-  border-right: 1px solid var(--card-border) !important;
-}
 
-/* ACTIVE SIDEBAR ITEM — KEEP PURPLE HIGHLIGHT */
-.sidebar-item.active {
-  background: linear-gradient(90deg, #6366f1, #7c3aed) !important;
-  color: #fff !important;
-}
-
-/* CARDS — SAME AS AUTH/PROFILE */
-.organizer-card {
-  background: var(--card-bg) !important;
-  border: 1px solid var(--card-border) !important;
-  backdrop-filter: blur(var(--card-blur));
-  box-shadow: var(--card-shadow);
-  border-radius: 16px !important;
-  padding: 1.75rem !important;
-}
-
-/* TITLES */
-.organizer-title {
-  color: #e6eef8 !important;
+/* Section title */
+.org-section-title {
+  color: #c084fc;
   font-weight: 600;
-  margin-bottom: 1.5rem;
+  font-size: 1.2rem;
+  margin-bottom: 0.8rem;
 }
 
-/* BUTTONS — SAME AS .btn-primary */
-.organizer-button {
-  background: linear-gradient(90deg, #60a5fa, #7c3aed);
-  color: #fff;
+/* Grid spacing for ticket rows */
+.ticket-grid {
+  position: relative;
+}
+
+.remove-ticket-btn {
+  background: #b91c1c;
+  color: white;
   border: none;
-  border-radius: 10px;
-  padding: 0.85rem 1.5rem;
-  font-weight: 600;
-  box-shadow: 0 6px 16px rgba(99, 102, 241, 0.25);
+  padding: 0.35rem 0.7rem;
+  border-radius: 8px;
+  font-size: 1.1rem;
   cursor: pointer;
-  transition: 0.2s;
+  height: 42px;
+  align-self: flex-end;
+  transition: background 0.2s ease;
 }
 
-.organizer-button:hover {
-  filter: brightness(1.07);
-  box-shadow: 0 8px 24px rgba(99, 102, 241, 0.4);
+.remove-ticket-btn:hover {
+  background: #dc2626;
+}
+
+textarea {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06);
+  color: #e6eef8;
+  padding: 0.75rem 1rem;
+  border-radius: 14px;
+  resize: vertical;
+}
+
+textarea:focus {
+  border-color: rgba(99, 102, 241, 0.6);
+  background: rgba(255,255,255,0.06);
+  outline: none;
+}
+
+
+/* Universal organizer input styling — matches auth-card style */
+
+.organizer-auth-card input,
+.organizer-auth-card textarea,
+.organizer-auth-card select {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  color: #e6eef8;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border-radius: 14px;
+  font-size: 0.95rem;
+  box-sizing: border-box;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.organizer-auth-card input:focus,
+.organizer-auth-card textarea:focus {
+  border-color: rgba(168, 85, 247, 0.7);
+  background: rgba(255,255,255,0.06);
+  outline: none;
+}
+
+/* Fix datetime-local inputs (they look ugly by default) */
+.organizer-auth-card input[type="datetime-local"] {
+  color-scheme: dark;
+}
+
+/* Textarea styling */
+.organizer-auth-card textarea {
+  min-height: 100px;
+  resize: vertical;
+}
+
+/* Labels */
+.organizer-auth-card label {
+  color: #cbd5e1;
+  font-size: 0.9rem;
+  margin-bottom: 0.35rem;
+  display: block;
+}
+
+/* Reduce spacing between form groups */
+.organizer-auth-card .form-grid > div,
+.organizer-auth-card .form-grid,
+.organizer-auth-card .ticket-grid {
+  margin-bottom: 1rem;
+}
+
+/* Event list container */
+.org-events-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* Event Card */
+.org-event-card {
+  background: var(--organizer-card-bg);
+  border: 1px solid var(--organizer-card-border);
+  border-radius: 14px;
+  padding: 1.5rem;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+  transition: transform 0.15s ease, box-shadow 0.2s ease;
+}
+
+.org-event-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+}
+
+/* Header */
+.org-event-header h3 {
+  font-size: 1.3rem;
+  color: #fff;
+  margin: 0;
+}
+
+.org-location {
+  color: #94a3b8;
+  font-size: 0.9rem;
+  margin-top: 0.2rem;
+}
+
+/* Details */
+.org-event-details {
+  margin-top: 1rem;
+  margin-bottom: 1.2rem;
+  color: #e2e8f0;
+  font-size: 0.9rem;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.org-event-details .label {
+  color: #c084fc;
+  font-weight: 600;
+}
+
+/* Action buttons */
+.org-event-actions {
+  display: flex;
+  gap: 0.7rem;
+  margin-top: 1rem;
 }
