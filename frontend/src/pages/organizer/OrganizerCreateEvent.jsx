@@ -1,70 +1,28 @@
+import OrganizerLayout from "../../components/OrganizerLayout";
 import { useState } from "react";
-import "../../styles/organizer.css";
 
 export default function OrganizerCreateEvent() {
-  const [form, setForm] = useState({
-    title: "",
-    description: "",
-    date: "",
-    time: "",
-    location: "",
-  });
-
-  const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
-  };
-
-  const submitEvent = (e) => {
-    e.preventDefault();
-    console.log("Event submitted:", form);
-    // TODO: API call
-  };
+  const [form, setForm] = useState({});
 
   return (
-    <div className="organizer-page">
-      <h1 className="organizer-title">Create New Event</h1>
+    <OrganizerLayout>
+      <div className="profile-card organizer-card">
+        <h2 className="organizer-title">Create Event</h2>
 
-      <form className="organizer-card organizer-form" onSubmit={submitEvent}>
-        <input
-          type="text"
-          name="title"
-          placeholder="Event Title"
-          value={form.title}
-          onChange={handleChange}
-        />
+        <form className="profile-form">
+          <div className="form-row">
+            <label>Title</label>
+            <input name="title" />
+          </div>
 
-        <textarea
-          name="description"
-          placeholder="Event Description"
-          value={form.description}
-          onChange={handleChange}
-          rows="4"
-        />
+          <div className="form-row">
+            <label>Description</label>
+            <input name="description" />
+          </div>
 
-        <input
-          type="date"
-          name="date"
-          value={form.date}
-          onChange={handleChange}
-        />
-
-        <input
-          type="time"
-          name="time"
-          value={form.time}
-          onChange={handleChange}
-        />
-
-        <input
-          type="text"
-          name="location"
-          placeholder="Location"
-          value={form.location}
-          onChange={handleChange}
-        />
-
-        <button type="submit">Create Event</button>
-      </form>
-    </div>
+          <button className="profile-save">Create Event</button>
+        </form>
+      </div>
+    </OrganizerLayout>
   );
 }

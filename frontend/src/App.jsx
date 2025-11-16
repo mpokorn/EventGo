@@ -4,8 +4,6 @@ import {
   Route,
   useLocation
 } from "react-router-dom";
-import { useEffect } from "react";
-
 
 import Events from "./pages/Events";
 import EventDetail from "./pages/EventDetail";
@@ -18,39 +16,28 @@ import Waitlist from "./pages/Waitlist";
 import OrganizerDashboard from "./pages/organizer/OrganizerDashboard";
 import OrganizerEvents from "./pages/organizer/OrganizerEvents";
 import OrganizerCreateEvent from "./pages/organizer/OrganizerCreateEvent";
-// you can delete ListAnEvent later once moved
 
 import Header from "./components/Header";
 import { AuthProvider } from "./context/AuthContext";
+
 
 // --------------------
 // Layout Component
 // --------------------
 
-
 function Layout() {
   const location = useLocation();
 
+  // Detect organizer pages
   const isOrganizerPage =
     location.pathname.startsWith('/organizer') ||
     location.pathname === '/register/organizer' ||
     location.pathname === '/events/create' ||
     location.pathname === '/list-event';
 
-  useEffect(() => {
-    if (isOrganizerPage) {
-      document.body.classList.add('organizer-bg');
-    } else {
-      document.body.classList.remove('organizer-bg');
-    }
-    return () => {
-      document.body.classList.remove('organizer-bg');
-    };
-  }, [isOrganizerPage]);
-
-
   return (
-    <>
+    // IMPORTANT: wrapper class for organizer styles
+    <div className={isOrganizerPage ? "organizer-page" : "user-page"}>
       <Header />
       <main>
         <Routes>
@@ -69,9 +56,10 @@ function Layout() {
           <Route path="/organizer/events/create" element={<OrganizerCreateEvent />} />
         </Routes>
       </main>
-    </>
+    </div>
   );
 }
+
 
 // --------------------
 // Main App
