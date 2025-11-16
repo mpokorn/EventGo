@@ -1,66 +1,81 @@
-import { BrowserRouter as Router, Routes, Route, Link, useNavigate, useLocation } from "react-router-dom";
-import { useState, useEffect } from "react";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  useLocation
+} from "react-router-dom";
+import { useEffect } from "react";
+
+
 import Events from "./pages/Events";
 import EventDetail from "./pages/EventDetail";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
-import { AuthProvider, useAuth } from "./context/AuthContext";
+import RegisterOrganizer from "./pages/RegisterOrganizer";
+import OrganizerAuth from "./pages/OrganizerAuth";
+import Profile from "./pages/Profile";
+import Waitlist from "./pages/Waitlist";
+import OrganizerDashboard from "./pages/organizer/OrganizerDashboard";
+import OrganizerEvents from "./pages/organizer/OrganizerEvents";
+import OrganizerCreateEvent from "./pages/organizer/OrganizerCreateEvent";
+// you can delete ListAnEvent later once moved
 
+import Header from "./components/Header";
+import { AuthProvider } from "./context/AuthContext";
+
+// --------------------
+// Layout Component
+// --------------------
 
 
 function Layout() {
-  const navigate = useNavigate();
-  const { user, logout } = useAuth();
   const location = useLocation();
-  const hideNav = location.pathname === "/login" || location.pathname === "/register";
+
+  const isOrganizerPage =
+    location.pathname.startsWith('/organizer') ||
+    location.pathname === '/register/organizer' ||
+    location.pathname === '/events/create' ||
+    location.pathname === '/list-event';
+
+  useEffect(() => {
+    if (isOrganizerPage) {
+      document.body.classList.add('organizer-bg');
+    } else {
+      document.body.classList.remove('organizer-bg');
+    }
+    return () => {
+      document.body.classList.remove('organizer-bg');
+    };
+  }, [isOrganizerPage]);
+
 
   return (
     <>
-      {!hideNav && (
-        <nav className="bg-gray-800">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center justify-between h-16">
-              <div className="flex items-center">
-                <Link to="/" className="text-white font-bold text-xl">
-                  EventGo
-                </Link>
-              </div>
-              <div className="flex items-center">
-                {user ? (
-                  <div className="flex items-center space-x-4">
-                    <span className="text-gray-300">
-                      {user.first_name} {user.last_name}
-                    </span>
-                    <button
-                      onClick={logout}
-                      className="text-gray-300 hover:bg-gray-700 hover:text-white px-3 py-2 rounded-md text-sm font-medium"
-                    >
-                      Odjava
-                    </button>
-                  </div>
-                ) : (
-                  <Link
-                    to="/login"
-                    className="text-gray-300 hover:bg-gray-700 hover:text-white px-3 py-2 rounded-md text-sm font-medium"
-                  >
-                    Prijava
-                  </Link>
-                )}
-              </div>
-            </div>
-          </div>
-        </nav>
-      )}
-      <Routes>
-        <Route path="/" element={<Events />} />
-        <Route path="/events/:id" element={<EventDetail />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-      </Routes>
+      <Header />
+      <main>
+        <Routes>
+          {/* Public / user */}
+          <Route path="/" element={<Events />} />
+          <Route path="/events/:id" element={<EventDetail />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/register/organizer" element={<RegisterOrganizer />} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/waitlist" element={<Waitlist />} />
+
+          {/* Organizer */}
+          <Route path="/organizer" element={<OrganizerDashboard />} />
+          <Route path="/organizer/events" element={<OrganizerEvents />} />
+          <Route path="/organizer/events/create" element={<OrganizerCreateEvent />} />
+        </Routes>
+      </main>
     </>
   );
 }
 
+// --------------------
+// Main App
+// --------------------
 export default function App() {
   return (
     <Router>

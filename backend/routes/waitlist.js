@@ -114,6 +114,48 @@ router.get("/event/:event_id", async (req, res, next) => {
 });
 
 /* --------------------------------------
+   Get all waitlist entries for a specific user
+-------------------------------------- */
+router.get("/user/:user_id", async (req, res, next) => {
+  const { user_id } = req.params;
+
+  if (isNaN(user_id)) {
+    return res.status(400).json({ message: "ID uporabnika mora biti število." });
+  }
+
+  try {
+    const result = await pool.query(
+      `
+      SELECT 
+        w.id,
+        w.user_id,
+        (u.first_name || ' ' || u.last_name) AS user_name,
+        u.email AS user_email,
+        w.event_id,
+        e.title AS event_name,
+        e.start_datetime,
+        e.end_datetime,
+        w.joined_at
+      FROM waitlist w
+      JOIN users u ON w.user_id = u.id
+      JOIN events e ON w.event_id = e.id
+      WHERE w.user_id = $1
+      ORDER BY w.joined_at ASC;
+      `,
+      [user_id]
+    );
+
+    return res.status(200).json({
+      waitlist: result.rows
+    });
+  } catch (err) {
+    console.error("Error in GET /waitlist/user/:user_id:", err);
+    next(err);
+  }
+});
+
+
+/* --------------------------------------
     Add a user to the waitlist for an event
 -------------------------------------- */
 router.post("/", async (req, res, next) => {

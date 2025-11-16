@@ -1,0 +1,163 @@
+.event-detail-page {
+  min-height: 100vh;
+  padding-top: 6rem;
+  padding-left: 2rem;
+  padding-right: 2rem;
+  color: #e5e7eb;
+  background: linear-gradient(180deg, #0f1724 0%, #111827 100%);
+}
+
+/* HEADER */
+.event-detail-header {
+  text-align: center;
+  margin-bottom: 3rem;
+  max-width: 900px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.event-detail-header h1 {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: white;
+}
+
+.event-detail-subtitle {
+  color: #9ca3af;
+  margin-top: 0.5rem;
+  font-size: 1.1rem;
+}
+
+/* MAIN LAYOUT */
+.event-detail-main {
+  display: grid;
+  max-width: 1200px;
+  margin: 0 auto;
+  gap: 2rem;
+  grid-template-columns: 1fr 1fr;
+}
+
+/* CARDS */
+.event-detail-card {
+  background: rgba(17, 24, 39, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(12px);
+  border-radius: 18px;
+  padding: 2rem;
+}
+
+/* EVENT INFO */
+.event-detail-info-card h3 {
+  font-size: 1.4rem;
+  color: white;
+  margin-bottom: 1rem;
+}
+
+.event-detail-info-list p {
+  margin-bottom: 0.7rem;
+  color: #cbd5e1;
+}
+
+.event-detail-info-list span {
+  font-weight: 600;
+  color: #e2e8f0;
+}
+
+/* INPUTS */
+.event-detail-label {
+  margin-top: 1rem;
+  display: block;
+  font-weight: 500;
+  color: #cbd5e1;
+}
+
+.event-detail-input {
+  width: 100%;
+  margin-top: 0.4rem;
+  padding: 0.7rem 1rem;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(255, 255, 255, 0.05);
+  color: white;
+  outline: none;
+}
+
+.event-detail-input:focus {
+  border-color: #6366f1;
+}
+
+.event-detail-input-small {
+  width: 120px;
+}
+
+/* BUTTON */
+.event-detail-btn {
+  width: 100%;
+  margin-top: 1.5rem;
+  background: linear-gradient(90deg, #3b82f6, #7c3aed);
+  padding: 0.9rem;
+  border-radius: 10px;
+  font-weight: 600;
+  color: white;
+  border: none;
+  cursor: pointer;
+  transition: 0.25s;
+}
+
+.event-detail-btn:hover {
+  transform: scale(1.02);
+  opacity: 0.9;
+}
+
+/* MESSAGE BOXES */
+.event-detail-message {
+  margin: 2rem auto;
+  max-width: 600px;
+  padding: 1rem 1.5rem;
+  border-radius: 10px;
+  text-align: center;
+  font-weight: 600;
+}
+
+.event-detail-message.success {
+  background: rgba(16, 185, 129, 0.2);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  color: #6ee7b7;
+}
+
+.event-detail-message.error {
+  background: rgba(239, 68, 68, 0.2);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  color: #fca5a5;
+}
+
+.event-detail-no-tickets {
+  color: #9ca3af;
+}
+
+/* Small-screen layout */
+@media (max-width: 768px) {
+  .event-detail-main {
+    grid-template-columns: 1fr;
+  }
+}
+
+
+/* SELECT (ticket type) */
+.event-detail-select {
+  width: 100%;
+  margin-top: 0.4rem;
+  padding: 0.7rem 1rem;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(255, 255, 255, 0.05);
+  color: white;
+  outline: none;
+}
+
+/* Make dropdown options readable */
+.event-detail-select option {
+  color: #111827;          /* dark text */
+  background-color: #ffffff; /* keep default white list background */
+}

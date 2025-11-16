@@ -1,0 +1,119 @@
+/* =======================================
+   ORGANIZER THEME (ONE FILE FOR ALL PAGES)
+======================================= */
+
+:root {
+  --org-bg-start: #1e1b4b;
+  --org-bg-mid: #312e81;
+  --org-bg-end: #1e293b;
+
+  --org-card-bg: rgba(49, 46, 129, 0.45);
+  --org-card-border: rgba(168, 85, 247, 0.25);
+
+  --org-text: #e0e7ff;
+  --org-heading: #c7d2fe;
+  --org-accent: #6366f1;
+}
+
+.organizer-page {
+  min-height: 100vh;
+  background: linear-gradient(180deg, var(--org-bg-start), var(--org-bg-mid), var(--org-bg-end));
+  padding: 2rem;
+  color: var(--org-text);
+}
+
+/* CARDS */
+.organizer-card {
+  background: var(--org-card-bg);
+  border: 1px solid var(--org-card-border);
+  padding: 1.5rem;
+  border-radius: 1rem;
+  backdrop-filter: blur(10px);
+}
+
+/* TITLES */
+.organizer-title {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--org-heading);
+  margin-bottom: 1rem;
+}
+
+/* FORMS */
+.organizer-form input,
+.organizer-form textarea,
+.organizer-form select {
+  width: 100%;
+  padding: 0.8rem;
+  margin-bottom: 1.2rem;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.15);
+  color: var(--org-text);
+  border-radius: 8px;
+}
+
+.organizer-form button {
+  background: var(--org-accent);
+  border: none;
+  padding: 0.9rem 1.5rem;
+  border-radius: 8px;
+  color: white;
+  width: 100%;
+  cursor: pointer;
+  transition: 0.25s;
+}
+
+.organizer-form button:hover {
+  opacity: 0.9;
+}
+
+/* EVENT CARDS */
+.organizer-event-card {
+  background: var(--org-card-bg);
+  padding: 1.3rem;
+  border: 1px solid var(--org-card-border);
+  border-radius: 1rem;
+  margin-bottom: 1rem;
+}
+
+.organizer-event-card h3 {
+  margin-bottom: 0.3rem;
+  color: var(--org-heading);
+}
+
+.event-actions {
+  margin-top: 1rem;
+  display: flex;
+  gap: 1rem;
+}
+
+.event-actions button {
+  background: var(--org-accent);
+  color: white;
+  padding: 0.6rem 1rem;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+/* DASHBOARD STATS */
+.dashboard-stats {
+  display: flex;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.dashboard-stat-card {
+  flex: 1;
+  background: var(--org-card-bg);
+  padding: 1.4rem;
+  border-radius: 1rem;
+  border: 1px solid var(--org-card-border);
+  text-align: center;
+}
+
+.dashboard-stat-number {
+  font-size: 2rem;
+  font-weight: bold;
+  color: var(--org-accent);
+}

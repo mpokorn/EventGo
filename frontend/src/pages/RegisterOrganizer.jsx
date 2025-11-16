@@ -1,10 +1,9 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import '../styles/auth.css';
+import "../styles/auth.css";
 
-
-export default function Register() {
+export default function RegisterOrganizer() {
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -12,8 +11,10 @@ export default function Register() {
     firstName: "",
     lastName: "",
   });
+
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+
   const navigate = useNavigate();
   const { register } = useAuth();
 
@@ -45,6 +46,7 @@ export default function Register() {
       const registrationData = {
         first_name: firstName,
         last_name: lastName,
+        role: "organizer",
         ...rest,
       };
 
@@ -61,19 +63,24 @@ export default function Register() {
   };
 
   return (
-    <div className="auth-page">
+    // ✅ IMPORTANT: organizer-theme added here
+    <div className="auth-page organizer-theme">
       <div className="auth-card">
         <div className="text-center mb-6">
-          <h2 className="text-2xl font-extrabold text-white">Register</h2>
+          <h2 className="text-2xl font-extrabold text-white">
+            Register as Organizer
+          </h2>
           <p className="mt-2 text-sm text-gray-300">
-            Create your account to get started
+            Create an organizer account to list and manage your events.
           </p>
         </div>
 
         <form onSubmit={handleSubmit}>
           <div className="form-grid">
             <div>
-              <label htmlFor="firstName">First Name</label>
+              <label htmlFor="firstName">
+                First Name <span style={{ color: "#ef4444" }}>*</span>
+              </label>
               <input
                 id="firstName"
                 name="firstName"
@@ -85,7 +92,9 @@ export default function Register() {
             </div>
 
             <div>
-              <label htmlFor="lastName">Last Name</label>
+              <label htmlFor="lastName">
+                Last Name <span style={{ color: "#ef4444" }}>*</span>
+              </label>
               <input
                 id="lastName"
                 name="lastName"
@@ -97,7 +106,9 @@ export default function Register() {
             </div>
 
             <div>
-              <label htmlFor="email">Email</label>
+              <label htmlFor="email">
+                Email <span style={{ color: "#ef4444" }}>*</span>
+              </label>
               <input
                 id="email"
                 name="email"
@@ -109,7 +120,9 @@ export default function Register() {
             </div>
 
             <div>
-              <label htmlFor="password">Password</label>
+              <label htmlFor="password">
+                Password <span style={{ color: "#ef4444" }}>*</span>
+              </label>
               <input
                 id="password"
                 name="password"
@@ -121,7 +134,9 @@ export default function Register() {
             </div>
 
             <div>
-              <label htmlFor="confirmPassword">Confirm Password</label>
+              <label htmlFor="confirmPassword">
+                Confirm Password <span style={{ color: "#ef4444" }}>*</span>
+              </label>
               <input
                 id="confirmPassword"
                 name="confirmPassword"
@@ -145,7 +160,7 @@ export default function Register() {
               disabled={isLoading}
               className="btn-primary"
             >
-              {isLoading ? "Registering..." : "Register"}
+              {isLoading ? "Registering..." : "Register as Organizer"}
             </button>
           </div>
         </form>
@@ -155,9 +170,12 @@ export default function Register() {
           <Link to="/login">Sign in</Link>
         </div>
 
-        <div className="auth-footer" style={{ marginTop: '1rem', paddingTop: '1rem' }}>
-          Want to organize events?
-          <Link to="/register/organizer">Register as Organizer</Link>
+        <div
+          className="auth-footer"
+          style={{ marginTop: "1rem", paddingTop: "1rem" }}
+        >
+          Want to register as a regular user?
+          <Link to="/register">Register as User</Link>
         </div>
       </div>
     </div>

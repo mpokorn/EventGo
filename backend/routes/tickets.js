@@ -130,6 +130,7 @@ router.get("/user/:user_id", async (req, res, next) => {
         t.event_id,
         e.title AS event_name,
         e.start_datetime,
+        e.end_datetime,
         t.ticket_type_id,
         tt.type AS ticket_type,
         tt.price AS ticket_price,

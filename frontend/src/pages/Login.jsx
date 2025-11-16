@@ -1,7 +1,7 @@
 ﻿import { useState } from "react";
 import { useNavigate, Link, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import "./auth.css";
+import '../styles/auth.css';
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -9,7 +9,6 @@ export default function Login() {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [remember, setRemember] = useState(false);
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -25,8 +24,13 @@ export default function Login() {
     }
 
     setIsLoading(true);
+
     try {
-      await login(email, password, { remember });
+      // 🔥 Recommended version: Only email + password
+      await login(email, password);
+      //console.log("AFTER LOGIN USER:", JSON.parse(localStorage.getItem("user")));
+
+
       const returnTo = location.state?.returnTo || "/";
       navigate(returnTo, { replace: true });
     } catch (err) {
