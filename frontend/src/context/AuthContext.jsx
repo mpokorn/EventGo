@@ -1,7 +1,6 @@
-// src/context/AuthContext.jsx
 import { createContext, useContext, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import api from "../api/api";
+import { authService } from "../api/authService";
 
 const AuthContext = createContext(null);
 
@@ -10,98 +9,52 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  // 🔁 On app load: restore user from localStorage
   useEffect(() => {
     const token = localStorage.getItem("token");
     const userData = localStorage.getItem("user");
 
-    if (token && userData) {
-      // interceptor will handle attaching token to requests
-      setUser(JSON.parse(userData));
-    }
-
+    if (token && userData) setUser(JSON.parse(userData));
     setLoading(false);
   }, []);
 
-  // 🔑 Login: always persist to localStorage
+  const handleAuthSuccess = (token, user) => {
+    localStorage.setItem("token", token);
+    localStorage.setItem("user", JSON.stringify(user));
+    setUser(user);
+  };
+
   const login = async (email, password) => {
-    try {
-      const response = await api.post("/users/login", { email, password });
-      const { token, user } = response.data;
-
-      localStorage.setItem("token", token);
-      localStorage.setItem("user", JSON.stringify(user));
-
-      setUser(user);
-      return true;
-    } catch (error) {
-      throw error;
-    }
+    const res = await authService.login(email, password);
+    handleAuthSuccess(res.data.token, res.data.user);
   };
 
-  // 🆕 Register normal user
-  const register = async (userData) => {
-    try {
-      const response = await api.post("/users/register", userData);
-      const { token, user } = response.data;
-
-      localStorage.setItem("token", token);
-      localStorage.setItem("user", JSON.stringify(user));
-
-      setUser(user);
-      return true;
-    } catch (error) {
-      throw error;
-    }
+  const register = async (data) => {
+    const res = await authService.register(data);
+    handleAuthSuccess(res.data.token, res.data.user);
   };
 
-  // 🔑 Organizer login
   const organizerLogin = async (email, password) => {
-    try {
-      const response = await api.post("/users/organizer-login", { email, password });
-      const { token, user } = response.data;
-
-      localStorage.setItem("token", token);
-      localStorage.setItem("user", JSON.stringify(user));
-
-      setUser(user);
-      return true;
-    } catch (error) {
-      throw error;
-    }
+    const res = await authService.organizerLogin(email, password);
+    handleAuthSuccess(res.data.token, res.data.user);
   };
 
-  // 🆕 Organizer register
-  const organizerRegister = async (userData) => {
-    try {
-      const response = await api.post("/users/organizer-register", userData);
-      const { token, user } = response.data;
-
-      localStorage.setItem("token", token);
-      localStorage.setItem("user", JSON.stringify(user));
-
-      setUser(user);
-      return true;
-    } catch (error) {
-      throw error;
-    }
+  const organizerRegister = async (data) => {
+    const res = await authService.organizerRegister(data);
+    handleAuthSuccess(res.data.token, res.data.user);
   };
 
-  // 🚪 Logout
   const logout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
+    localStorage.clear();
     setUser(null);
     navigate("/");
   };
 
-  // Guard helper for protected actions/pages
-  const requireAuth = (callback) => {
+  const requireAuth = (fn) => {
     if (!user) {
-      navigate("/login", { state: { returnTo: window.location.pathname } });
+      navigate("/login");
       return false;
     }
-    return callback();
+    return fn();
   };
 
   return (
@@ -122,10 +75,4 @@ export const AuthProvider = ({ children }) => {
   );
 };
 
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
-  return context;
-};
+export const useAuth = () => useContext(AuthContext);

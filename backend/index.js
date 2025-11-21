@@ -31,10 +31,10 @@ app.use("/waitlist", waitlistRouter);
 
 // test route
 app.get("/", (req, res) => {
-  res.json({ message: "EventGo API deluje" });
+  res.json({ message: "EventGo API is working" });
 });
 
 
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server teče na portu ${PORT}`));
+app.listen(PORT, () => console.log(`Server is running on port ${PORT}`));

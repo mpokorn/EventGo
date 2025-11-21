@@ -7,7 +7,7 @@ export default function OrganizerDashboard() {
 
       <div className="profile-card organizer-card">
         <h2>Overview</h2>
-        <p>Your organizer stats will appear here.</p>
+        <p>You can edit your events here.</p>
       </div>
     </OrganizerLayout>
   );

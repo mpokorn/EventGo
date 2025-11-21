@@ -2,6 +2,9 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import OrganizerLayout from "../../components/OrganizerLayout";
 import { useAuth } from "../../context/AuthContext";
+
+import { eventService } from "../../api/eventService";
+
 import "../../styles/organizer.css";
 
 export default function OrganizerEvents() {
@@ -15,11 +18,8 @@ export default function OrganizerEvents() {
 
     const loadEvents = async () => {
       try {
-        const res = await fetch(
-          `http://localhost:5000/events/organizer/${user.id}`
-        );
-        const data = await res.json();
-        setEvents(data);
+        const res = await eventService.getByOrganizer(user.id);
+        setEvents(res.data);
       } catch (err) {
         console.error("Error loading events:", err);
       } finally {
@@ -34,29 +34,18 @@ export default function OrganizerEvents() {
     if (!window.confirm("Are you sure you want to delete this event?")) return;
 
     try {
-      const res = await fetch(`http://localhost:5000/events/${id}`, {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ organizer_id: user.id }),
-      });
-
-      if (!res.ok) {
-        const r = await res.json();
-        alert(r.message || "Failed to delete event.");
-        return;
-      }
+      await eventService.delete(id, user.id);
 
       setEvents((prev) => prev.filter((e) => e.id !== id));
     } catch (err) {
       console.error(err);
-      alert("Could not delete event.");
+      alert(err.response?.data?.message || "Could not delete event.");
     }
   };
 
   return (
     <OrganizerLayout title="My Events">
       <div className="org-events-container">
-
         {loading ? (
           <p className="org-muted">Loading events...</p>
         ) : events.length === 0 ? (
@@ -64,7 +53,6 @@ export default function OrganizerEvents() {
         ) : (
           events.map((ev) => (
             <div key={ev.id} className="org-event-card">
-
               <div className="org-event-header">
                 <h3>{ev.title}</h3>
                 <p className="org-location">{ev.location}</p>

@@ -1,6 +1,10 @@
 import { useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import OrganizerLayout from "../../components/OrganizerLayout";
+
+import { eventService } from "../../api/eventService";
+import { ticketService } from "../../api/ticketService";
+
 import "../../styles/auth.css";
 import "../../styles/organizer.css";
 
@@ -50,37 +54,34 @@ export default function OrganizerCreateEvent() {
         0
       );
 
-      // Create event
-      const eventRes = await fetch("http://localhost:5000/events", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...form,
-          organizer_id: user.id,
-          total_tickets: totalTickets,
-        }),
+      // -----------------------------
+      // 1. Create Event
+      // -----------------------------
+      const eventRes = await eventService.create({
+        ...form,
+        organizer_id: user.id,
+        total_tickets: totalTickets,
       });
 
-      const eventData = await eventRes.json();
-      if (!eventRes.ok) throw new Error(eventData.message);
+      const eventId = eventRes.data.event.id;
 
-      const eventId = eventData.event.id;
-
-      // Create ticket types
+      // -----------------------------
+      // 2. Create Ticket Types
+      // -----------------------------
       for (const t of ticketTypes) {
-        await fetch("http://localhost:5000/ticket-types", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            event_id: eventId,
-            type: t.type,
-            price: Number(t.price),
-            total_tickets: Number(t.total_tickets),
-          }),
+        await ticketService.create({
+          event_id: eventId,
+          type: t.type,
+          price: Number(t.price),
+          total_tickets: Number(t.total_tickets),
         });
       }
 
+      // -----------------------------
+      // Success
+      // -----------------------------
       setMessage("Event created successfully!");
+
       setForm({
         title: "",
         description: "",
@@ -88,9 +89,11 @@ export default function OrganizerCreateEvent() {
         start_datetime: "",
         end_datetime: "",
       });
+
       setTicketTypes([{ type: "", price: "", total_tickets: "" }]);
+
     } catch (err) {
-      setError(err.message);
+      setError(err.response?.data?.message || err.message);
     } finally {
       setLoading(false);
     }
@@ -100,7 +103,6 @@ export default function OrganizerCreateEvent() {
     <OrganizerLayout title="Create Event">
       <div className="auth-card organizer-auth-card">
 
-        {/* Header */}
         <div className="text-center mb-6">
           <h2 className="text-2xl font-extrabold text-white">Create Event</h2>
           <p className="mt-2 text-sm text-gray-300">

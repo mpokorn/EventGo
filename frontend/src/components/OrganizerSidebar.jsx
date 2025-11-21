@@ -14,10 +14,8 @@ export default function OrganizerSidebar() {
       <h2 className="sidebar-title">Organizer Panel</h2>
 
       <div className="sidebar-menu">
-        <Link className={isActive("/organizer/dashboard")} to="/organizer/dashboard">Dashboard</Link>
         <Link className={isActive("/organizer/events")} to="/organizer/events">My Events</Link>
         <Link className={isActive("/organizer/events/create")} to="/organizer/events/create">Create Event</Link>
-        <Link className={isActive("/organizer/list-event")} to="/organizer/list-event">List an Event</Link>
       </div>
     </aside>
   );

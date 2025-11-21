@@ -200,22 +200,30 @@ router.get("/event/:event_id", async (req, res, next) => {
         t.id,
         t.user_id,
         (u.first_name || ' ' || u.last_name) AS buyer_name,
-        t.owner_id,
-        (o.first_name || ' ' || o.last_name) AS owner_name,
+
         t.ticket_type_id,
         tt.type AS ticket_type,
         tt.price AS ticket_price,
+
         t.status,
-        t.issued_at
+        t.issued_at,
+
+        tr.id AS transaction_id,
+        tr.total_price,
+        tr.payment_method,
+        tr.reference_code,
+        tr.created_at AS payment_time
+
       FROM tickets t
       JOIN users u ON t.user_id = u.id
-      LEFT JOIN users o ON t.owner_id = o.id
       LEFT JOIN ticket_types tt ON t.ticket_type_id = tt.id
+      LEFT JOIN transactions tr ON t.transaction_id = tr.id
       WHERE t.event_id = $1
       ORDER BY t.issued_at DESC;
       `,
       [event_id]
     );
+
 
     if (result.rowCount === 0) {
       return res.status(200).json({
@@ -250,7 +258,9 @@ router.post("/", async (req, res, next) => {
   const user_id = req.user.id; // Get user ID from authenticated token
 
   if (!event_id || !ticket_type_id || !quantity) {
-    return res.status(400).json({ message: "Manjkajo podatki za nakup vstopnic!" });
+    return res.status(400).json({
+      message: "Manjkajo podatki za nakup vstopnic!"
+    });
   }
 
   try {
@@ -258,9 +268,10 @@ router.post("/", async (req, res, next) => {
     const [userCheck, eventCheck, typeCheck] = await Promise.all([
       pool.query(`SELECT id FROM users WHERE id = $1`, [user_id]),
       pool.query(`SELECT id FROM events WHERE id = $1`, [event_id]),
-      pool.query(`SELECT total_tickets, tickets_sold, price FROM ticket_types WHERE id = $1`, [
-        ticket_type_id,
-      ]),
+      pool.query(
+        `SELECT total_tickets, tickets_sold, price FROM ticket_types WHERE id = $1`,
+        [ticket_type_id]
+      ),
     ]);
 
     if (userCheck.rowCount === 0)
@@ -272,63 +283,95 @@ router.post("/", async (req, res, next) => {
 
     const { total_tickets, tickets_sold, price } = typeCheck.rows[0];
     const available = total_tickets - tickets_sold;
+
     if (available < quantity) {
       return res.status(400).json({
         message: `Na voljo je samo ${available} vstopnic za to vrsto!`,
       });
     }
 
-    // 🧾 Create transaction
+    /* --------------------------------------
+       🔹 Generate Reference Code
+       Example: TXN-483920
+    -------------------------------------- */
+    const reference_code = `TXN-${Math.floor(100000 + Math.random() * 900000)}`;
+
     const total_price = Number(price) * quantity;
+
+    /* --------------------------------------
+       🧾 Create transaction WITH reference_code
+    -------------------------------------- */
     const txResult = await pool.query(
-      `INSERT INTO transactions (user_id, total_price, status, payment_method)
-       VALUES ($1, $2, 'completed', $3)
-       RETURNING id;`,
-      [user_id, total_price, payment_method || "card"]
+      `
+      INSERT INTO transactions 
+        (user_id, total_price, status, payment_method, reference_code)
+      VALUES 
+        ($1, $2, 'completed', $3, $4)
+      RETURNING id, reference_code, created_at;
+      `,
+      [user_id, total_price, payment_method || "card", reference_code]
     );
+
     const transaction_id = txResult.rows[0].id;
 
-    //  Create tickets
+    /* --------------------------------------
+        🎟 Create ticket records
+    -------------------------------------- */
     const insertPromises = [];
     for (let i = 0; i < quantity; i++) {
       insertPromises.push(
         pool.query(
-          `INSERT INTO tickets (transaction_id, ticket_type_id, event_id, user_id, status)
-           VALUES ($1, $2, $3, $4, 'active');`,
+          `
+          INSERT INTO tickets 
+            (transaction_id, ticket_type_id, event_id, user_id, status)
+          VALUES 
+            ($1, $2, $3, $4, 'active');
+          `,
           [transaction_id, ticket_type_id, event_id, user_id]
         )
       );
     }
     await Promise.all(insertPromises);
 
-    // Update counts
+    /* --------------------------------------
+       Update ticket counts
+    -------------------------------------- */
     await pool.query(
-      `UPDATE ticket_types SET tickets_sold = tickets_sold + $1 WHERE id = $2;`,
+      `UPDATE ticket_types SET tickets_sold = tickets_sold + $1 WHERE id = $2`,
       [quantity, ticket_type_id]
     );
+
     await pool.query(
-      `UPDATE events
-       SET tickets_sold = (
-         SELECT COALESCE(SUM(tickets_sold), 0)
-         FROM ticket_types
-         WHERE event_id = $1
-       )
-       WHERE id = $1;`,
+      `
+      UPDATE events
+      SET tickets_sold = (
+        SELECT COALESCE(SUM(tickets_sold), 0)
+        FROM ticket_types
+        WHERE event_id = $1
+      )
+      WHERE id = $1;
+      `,
       [event_id]
     );
 
+    /* --------------------------------------
+        Response
+    -------------------------------------- */
     res.status(201).json({
-      message: `Uspešno kupljeno ${quantity} vstopnic!`,
+      message: `Succesfully purchased ${quantity} tickets!`,
       transaction_id,
+      reference_code,
       total_price,
       quantity,
       payment_method: payment_method || "card",
     });
+
   } catch (err) {
-    console.error(" Napaka pri POST /tickets:", err);
+    console.error("Error in POST /tickets:", err);
     next(err);
   }
 });
+
 
 /* --------------------------------------
     Refund ticket
@@ -338,29 +381,68 @@ router.put("/:id/refund", async (req, res, next) => {
   if (isNaN(id)) return res.status(400).json({ message: "ID mora biti število." });
 
   try {
-    const result = await pool.query(
-      `
-      UPDATE tickets
-      SET status = 'refunded'
-      WHERE id = $1 AND status = 'active'
-      RETURNING *;
-      `,
+    await pool.query("BEGIN");
+
+    // 1️⃣ Check ticket
+    const ticketRes = await pool.query(
+      `SELECT id, event_id, ticket_type_id, status
+       FROM tickets
+       WHERE id = $1`,
       [id]
     );
 
-    if (result.rows.length === 0) {
-      return res.status(404).json({ message: "Vstopnica ni bila najdena ali je že vrnjena!" });
+    if (ticketRes.rowCount === 0) {
+      await pool.query("ROLLBACK");
+      return res.status(404).json({ message: "Vstopnica ne obstaja." });
     }
+
+    const ticket = ticketRes.rows[0];
+
+    if (ticket.status !== "active") {
+      await pool.query("ROLLBACK");
+      return res
+        .status(400)
+        .json({ message: "Vstopnica že ni več aktivna ali je že vrnjena." });
+    }
+
+    //  Update ticket itself
+    const updateTicket = await pool.query(
+      `UPDATE tickets
+       SET status = 'refunded'
+       WHERE id = $1
+       RETURNING *`,
+      [id]
+    );
+
+    //  Reduce tickets_sold on ticket type
+    await pool.query(
+      `UPDATE ticket_types
+       SET tickets_sold = tickets_sold - 1
+       WHERE id = $1`,
+      [ticket.ticket_type_id]
+    );
+
+    //  Reduce tickets_sold on event
+    await pool.query(
+      `UPDATE events
+       SET tickets_sold = tickets_sold - 1
+       WHERE id = $1`,
+      [ticket.event_id]
+    );
+
+    await pool.query("COMMIT");
 
     res.status(200).json({
       message: "Vstopnica uspešno vrnjena!",
-      ticket: result.rows[0],
+      ticket: updateTicket.rows[0],
     });
   } catch (err) {
+    await pool.query("ROLLBACK");
     console.error(" Napaka pri PUT /tickets/:id/refund:", err);
     next(err);
   }
 });
+
 
 /* --------------------------------------
    Delete ticket
