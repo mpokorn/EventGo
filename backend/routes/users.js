@@ -34,7 +34,7 @@ router.post("/register", async (req, res, next) => {
     const allowedRoles = ["user", "organizer", "admin"];
     if (role && !allowedRoles.includes(role)) {
       return res.status(400).json({
-        message: `Neveljavna vloga '${role}'. Dovoljene vloge so: ${allowedRoles.join(", ")}.`
+        message: `Invalid role '${role}'. Allowed roles are: ${allowedRoles.join(", ")}.`
       });
     }
 
@@ -54,13 +54,13 @@ router.post("/register", async (req, res, next) => {
     const refreshToken = generateRefreshToken(result.rows[0]);
 
     res.status(201).json({
-      message: "Registracija uspešna!",
+      message: "Registration successful!",
       token,
       refreshToken,
       user: result.rows[0]
     });
   } catch (err) {
-    console.error("Napaka pri registraciji:", err);
+    console.error("Error in registration:", err);
     next(err);
   }
 });
@@ -73,7 +73,7 @@ router.post("/login", async (req, res, next) => {
 
   if (!email || !password) {
     return res.status(400).json({
-      message: "E-pošta in geslo sta obvezna!"
+      message: "Email and password are required!"
     });
   }
 
@@ -85,7 +85,7 @@ router.post("/login", async (req, res, next) => {
 
     if (result.rows.length === 0) {
       return res.status(401).json({
-        message: "Napačna e-pošta ali geslo!"
+        message: "Incorrect email or password!"
       });
     }
 
@@ -94,7 +94,7 @@ router.post("/login", async (req, res, next) => {
 
     if (!isValidPassword) {
       return res.status(401).json({
-        message: "Napačna e-pošta ali geslo!"
+        message: "Incorrect email or password!"
       });
     }
 
@@ -102,7 +102,7 @@ router.post("/login", async (req, res, next) => {
     const refreshToken = generateRefreshToken(user);
 
     res.status(200).json({
-      message: "Prijava uspešna!",
+      message: "Login successful!",
       token,
       refreshToken,
       user: {
@@ -114,7 +114,7 @@ router.post("/login", async (req, res, next) => {
       }
     });
   } catch (err) {
-    console.error("Napaka pri prijavi:", err);
+    console.error("Error in login:", err);
     next(err);
   }
 });
@@ -127,7 +127,7 @@ router.post("/organizer-register", async (req, res, next) => {
 
   if (!first_name || !last_name || !email || !password) {
     return res.status(400).json({
-      message: "Vsa polja so obvezna!"
+      message: "All fields are required!"
     });
   }
 
@@ -139,7 +139,7 @@ router.post("/organizer-register", async (req, res, next) => {
 
     if (existing.rows.length > 0) {
       return res.status(400).json({
-        message: "Uporabnik s tem e-naslovom že obstaja!"
+        message: "User with this email already exists!"
       });
     }
 
@@ -158,13 +158,13 @@ router.post("/organizer-register", async (req, res, next) => {
     const refreshToken = generateRefreshToken(result.rows[0]);
 
     res.status(201).json({
-      message: "Registracija organizatorja uspešna!",
+      message: "Organizer registration successful!",
       token,
       refreshToken,
       user: result.rows[0]
     });
   } catch (err) {
-    console.error("Napaka pri registraciji organizatorja:", err);
+    console.error("Error in organizer registration:", err);
     next(err);
   }
 });
@@ -177,7 +177,7 @@ router.post("/organizer-login", async (req, res, next) => {
 
   if (!email || !password) {
     return res.status(400).json({
-      message: "E-pošta in geslo sta obvezna!"
+      message: "Email and password are required!"
     });
   }
 
@@ -189,7 +189,7 @@ router.post("/organizer-login", async (req, res, next) => {
 
     if (result.rows.length === 0) {
       return res.status(401).json({
-        message: "Napačna e-pošta ali geslo, ali niste organizator!"
+        message: "Incorrect email or password, or you are not an organizer!"
       });
     }
 
@@ -198,7 +198,7 @@ router.post("/organizer-login", async (req, res, next) => {
 
     if (!isValidPassword) {
       return res.status(401).json({
-        message: "Napačna e-pošta ali geslo!"
+        message: "Incorrect email or password!"
       });
     }
 
@@ -206,7 +206,7 @@ router.post("/organizer-login", async (req, res, next) => {
     const refreshToken = generateRefreshToken(user);
 
     res.status(200).json({
-      message: "Prijava organizatorja uspešna!",
+      message: "Organizer login successful!",
       token,
       refreshToken,
       user: {
@@ -218,7 +218,7 @@ router.post("/organizer-login", async (req, res, next) => {
       }
     });
   } catch (err) {
-    console.error("Napaka pri prijavi organizatorja:", err);
+    console.error("Error in organizer login:", err);
     next(err);
   }
 });
@@ -241,11 +241,11 @@ router.get("/", async (req, res, next) => {
     );
 
     res.status(200).json({
-      message: role ? `Najdeni uporabniki z vlogo '${role}'.` : "Najdeni vsi uporabniki.",
+      message: role ? `Users with role '${role}' found.` : "All users found.",
       users: result.rows
     });
   } catch (err) {
-    console.error("Napaka pri GET /users:", err);
+    console.error("Error in GET /users:", err);
     next(err);
   }
 });
@@ -257,7 +257,7 @@ router.get("/:id", async (req, res, next) => {
   const id = parseInt(req.params.id);
 
   if (isNaN(id)) {
-    return res.status(400).json({ message: "ID mora biti število." });
+    return res.status(400).json({ message: "ID must be a number." });
   }
 
   try {
@@ -271,7 +271,7 @@ router.get("/:id", async (req, res, next) => {
     );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ message: `Uporabnik z ID ${id} ne obstaja.` });
+      return res.status(404).json({ message: `User with ID ${id} does not exist.` });
     }
 
     const counts = await pool.query(
@@ -290,7 +290,7 @@ router.get("/:id", async (req, res, next) => {
       related_counts: counts.rows[0]
     });
   } catch (err) {
-    console.error("Napaka pri GET /users/:id:", err);
+    console.error("Error in GET /users/:id:", err);
     next(err);
   }
 });
@@ -303,14 +303,14 @@ router.post("/", async (req, res, next) => {
 
   if (!first_name || !last_name || !email || !password) {
     return res.status(400).json({
-      message: "Manjkajo podatki!"
+      message: "Missing required data!"
     });
   }
 
   const validRoles = ["user", "organizer", "admin"];
   if (role && !validRoles.includes(role)) {
     return res.status(400).json({
-      message: `Neveljavna vloga '${role}'.`
+      message: `Invalid role '${role}'.`
     });
   }
 
@@ -322,7 +322,7 @@ router.post("/", async (req, res, next) => {
 
     if (check.rows.length > 0) {
       return res.status(400).json({
-        message: "Uporabnik s tem e-naslovom že obstaja!"
+        message: "User with this email already exists!"
       });
     }
 
@@ -338,11 +338,11 @@ router.post("/", async (req, res, next) => {
     );
 
     res.status(201).json({
-      message: "Uporabnik uspešno dodan!",
+      message: "User successfully added!",
       user: result.rows[0]
     });
   } catch (err) {
-    console.error("Napaka pri POST /users:", err);
+    console.error("Error in POST /users:", err);
     next(err);
   }
 });
@@ -405,7 +405,7 @@ router.delete("/:id", async (req, res, next) => {
   const id = parseInt(req.params.id);
 
   if (isNaN(id)) {
-    return res.status(400).json({ message: "ID mora biti število." });
+    return res.status(400).json({ message: "ID must be a number." });
   }
 
   try {
@@ -416,7 +416,7 @@ router.delete("/:id", async (req, res, next) => {
 
     if (check.rows.length === 0) {
       return res.status(404).json({
-        message: "Uporabnik ni bil najden!"
+        message: "User not found!"
       });
     }
 
@@ -440,7 +440,7 @@ router.delete("/:id", async (req, res, next) => {
       parseInt(waitlist_count) > 0
     ) {
       return res.status(400).json({
-        message: "Uporabnika ni mogoče izbrisati - ima povezane zapise.",
+        message: "Cannot delete user - has related records.",
         relations: rel.rows[0]
       });
     }
@@ -455,11 +455,11 @@ router.delete("/:id", async (req, res, next) => {
     );
 
     res.status(200).json({
-      message: "Uporabnik uspešno izbrisan!",
+      message: "User successfully deleted!",
       deleted: deleted.rows[0]
     });
   } catch (err) {
-    console.error("Napaka pri DELETE /users/:id:", err);
+    console.error("Error in DELETE /users/:id:", err);
     next(err);
   }
 });

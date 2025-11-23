@@ -276,3 +276,133 @@ textarea:focus {
     padding: var(--space-sm);
   }
 }
+
+/* ========================================
+   Stats Grid & Cards
+======================================== */
+
+.org-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: var(--space-xl);
+}
+
+.org-stat-card {
+  padding: 1rem;
+  background-color: var(--color-card);
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+}
+
+.org-stat-label {
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+  margin-bottom: 0.5rem;
+}
+
+.org-stat-value {
+  font-size: 1.8rem;
+  font-weight: bold;
+}
+
+.org-stat-value.success { color: #4CAF50; }
+.org-stat-value.info { color: #2196F3; }
+.org-stat-value.warning { color: #FF9800; }
+.org-stat-value.danger { color: #F44336; }
+
+/* ========================================
+   Section Containers
+======================================== */
+
+.org-section {
+  margin-top: var(--space-xl);
+}
+
+.org-section.large {
+  margin-top: var(--space-2xl);
+}
+
+.org-section-title {
+  font-size: 1.1rem;
+  margin-bottom: 0.75rem;
+  font-weight: 600;
+}
+
+.org-section-title.info { color: #2196F3; }
+.org-section-title.warning { color: #FF9800; }
+.org-section-title.muted { color: var(--color-text-secondary); }
+
+.org-section-subtitle {
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+  margin-bottom: 1rem;
+}
+
+/* ========================================
+   Status Badges
+======================================== */
+
+.org-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  margin-left: 10px;
+  font-weight: bold;
+}
+
+.org-badge.reserved {
+  background-color: #E3F2FD;
+  color: #1976D2;
+}
+
+.org-badge.pending {
+  background-color: #FFF3E0;
+  color: #F57C00;
+}
+
+.org-badge.refunded {
+  background-color: #FFEBEE;
+  color: #C62828;
+}
+
+/* ========================================
+   Ticket Items
+======================================== */
+
+.ticket-item.reserved {
+  border-left: 4px solid #2196F3;
+}
+
+.ticket-item.pending {
+  border-left: 4px solid #FF9800;
+}
+
+.ticket-item.muted {
+  opacity: 0.7;
+}
+
+.ticket-divider {
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.ticket-meta .status-reserved { color: #2196F3; }
+.ticket-meta .status-pending { color: #FF9800; }
+.ticket-meta .status-warning { color: #FF9800; }
+.ticket-meta .status-error { color: var(--color-error); }
+
+/* ========================================
+   Utility Classes
+======================================== */
+
+.org-btn.back {
+  align-self: flex-start;
+  margin-bottom: 1rem;
+}
+
+.org-section-title.spaced {
+  margin-top: var(--space-xl);
+}

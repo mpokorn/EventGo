@@ -1,4 +1,4 @@
-export default function ProfileTickets({ reservedTickets, activeTickets, expiredTickets, loading, onResell, onAccept, onDecline }) {
+export default function ProfileTickets({ reservedTickets, activeTickets, pendingReturnTickets, refundedTickets, expiredTickets, loading, onResell, onAccept, onDecline }) {
   return (
     <section className="profile-card profile-tickets">
       <h2>Your Tickets</h2>
@@ -11,7 +11,7 @@ export default function ProfileTickets({ reservedTickets, activeTickets, expired
           {/* RESERVED TICKETS (FROM WAITLIST) */}
           {reservedTickets && reservedTickets.length > 0 && (
             <>
-              <h3 style={{ color: '#4CAF50' }}> Ticket Offers (from Waitlist)</h3>
+              <h3 className="success">🎫 Ticket Offers (from Waitlist)</h3>
               <ul className="ticket-list">
                 {reservedTickets.map(t => (
                   <li key={t.id} className="ticket-item reserved">
@@ -73,12 +73,62 @@ export default function ProfileTickets({ reservedTickets, activeTickets, expired
             {activeTickets.length === 0 && <p>No active tickets.</p>}
           </ul>
 
+          {/* PENDING RETURN TICKETS */}
+          {pendingReturnTickets && pendingReturnTickets.length > 0 && (
+            <>
+              <h3 className="warning spaced">Pending Return</h3>
+              <ul className="ticket-list">
+                {pendingReturnTickets.map(t => (
+                  <li key={t.id} className="ticket-item pending-return">
+                    <div className="ticket-info">
+                      <strong>{t.event_name}</strong> – {t.ticket_type} ({t.ticket_price} €)
+                      <div className="ticket-meta">
+                        Event: {new Date(t.start_datetime).toLocaleString()}
+                      </div>
+                      <div className="ticket-status-box pending">
+                        <strong>Return Requested</strong>
+                        <span className="status-text">
+                          Your ticket is being offered to the people on the waitlist. Your ticket is valid until someone else accepts it.
+                        </span>
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+
+          {/* REFUNDED TICKETS */}
+          {refundedTickets && refundedTickets.length > 0 && (
+            <>
+              <h3 className="success spaced">Successfully Refunded</h3>
+              <ul className="ticket-list">
+                {refundedTickets.map(t => (
+                  <li key={t.id} className="ticket-item refunded">
+                    <div className="ticket-info">
+                      <strong>{t.event_name}</strong> – {t.ticket_type} ({t.ticket_price} €)
+                      <div className="ticket-meta">
+                        Event: {new Date(t.start_datetime).toLocaleString()}
+                      </div>
+                      <div className="ticket-status-box success">
+                        <strong>Return Completed</strong>
+                        <span className="status-text">
+                          Your ticket was successfully sold and you will be refunded.
+                        </span>
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+
           {/* EXPIRED TICKETS */}
-          <h3>Expired Tickets</h3>
+          <h3 className="spaced">Expired Tickets</h3>
           <ul className="ticket-list">
 
             {expiredTickets.map(t => (
-              <li key={t.id} className="ticket-item" style={{ opacity: 0.6 }}>
+              <li key={t.id} className="ticket-item expired">
                 <div><strong>{t.event_name}</strong></div>
                 <div className="ticket-meta">
                   Event ended: {new Date(t.end_datetime).toLocaleString()}

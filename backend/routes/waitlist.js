@@ -39,13 +39,13 @@ router.get("/", async (req, res, next) => {
     const result = await pool.query(query, params);
 
     return res.status(200).json({
-      message: "Uspešno pridobljeni vnosi čakalne liste.",
+      message: "Waitlist entries retrieved successfully.",
       total_entries: result.rowCount,
       waitlist: result.rows,
     });
 
   } catch (err) {
-    console.error(" Napaka pri GET /waitlist:", err);
+    console.error(" Error in GET /waitlist:", err);
     next(err);
   }
 });
@@ -57,7 +57,7 @@ router.get("/event/:event_id", async (req, res, next) => {
   const { event_id } = req.params;
 
   if (isNaN(event_id)) {
-    return res.status(400).json({ message: "ID dogodka mora biti število." });
+    return res.status(400).json({ message: "Event ID must be a number." });
   }
 
   try {
@@ -67,7 +67,7 @@ router.get("/event/:event_id", async (req, res, next) => {
     );
 
     if (eventCheck.rowCount === 0) {
-      return res.status(404).json({ message: "Dogodek ne obstaja!" });
+      return res.status(404).json({ message: "Event does not exist!" });
     }
 
     const result = await pool.query(
@@ -94,7 +94,7 @@ router.get("/event/:event_id", async (req, res, next) => {
     });
 
   } catch (err) {
-    console.error(" Napaka pri GET /waitlist/event/:event_id:", err);
+    console.error(" Error in GET /waitlist/event/:event_id:", err);
     next(err);
   }
 });
@@ -106,27 +106,37 @@ router.get("/user/:user_id", async (req, res, next) => {
   const { user_id } = req.params;
 
   if (isNaN(user_id)) {
-    return res.status(400).json({ message: "ID uporabnika mora biti število." });
+    return res.status(400).json({ message: "User ID must be a number." });
   }
 
   try {
     const result = await pool.query(
       `
+      WITH ranked_waitlist AS (
+        SELECT 
+          w.id,
+          w.user_id,
+          w.event_id,
+          w.joined_at,
+          ROW_NUMBER() OVER (PARTITION BY w.event_id ORDER BY w.joined_at ASC) as position
+        FROM waitlist w
+      )
       SELECT 
-        w.id,
-        w.user_id,
+        rw.id,
+        rw.user_id,
         (u.first_name || ' ' || u.last_name) AS user_name,
         u.email AS user_email,
-        w.event_id,
+        rw.event_id,
         e.title AS event_name,
         e.start_datetime,
         e.end_datetime,
-        w.joined_at
-      FROM waitlist w
-      JOIN users u ON w.user_id = u.id
-      JOIN events e ON w.event_id = e.id
-      WHERE w.user_id = $1
-      ORDER BY w.joined_at ASC;
+        rw.joined_at,
+        rw.position
+      FROM ranked_waitlist rw
+      JOIN users u ON rw.user_id = u.id
+      JOIN events e ON rw.event_id = e.id
+      WHERE rw.user_id = $1
+      ORDER BY rw.joined_at ASC;
       `,
       [user_id]
     );
@@ -147,7 +157,7 @@ router.post("/", async (req, res, next) => {
 
   if (!user_id || !event_id) {
     return res.status(400).json({
-      message: "Manjkajo podatki: user_id in event_id sta obvezna!",
+      message: "Missing required data: user_id and event_id are required!",
     });
   }
 
@@ -158,7 +168,7 @@ router.post("/", async (req, res, next) => {
       [user_id]
     );
     if (userCheck.rowCount === 0) {
-      return res.status(404).json({ message: "Uporabnik ne obstaja!" });
+      return res.status(404).json({ message: "User does not exist!" });
     }
 
     // Validate event
@@ -167,7 +177,7 @@ router.post("/", async (req, res, next) => {
       [event_id]
     );
     if (eventCheck.rowCount === 0) {
-      return res.status(404).json({ message: "Dogodek ne obstaja!" });
+      return res.status(404).json({ message: "Event does not exist!" });
     }
 
     const event = eventCheck.rows[0];
@@ -175,7 +185,7 @@ router.post("/", async (req, res, next) => {
     // Check if sold out
     if (event.tickets_sold < event.total_tickets) {
       return res.status(400).json({
-        message: "Dogodek še ni razprodan — nakup je možen!",
+        message: "Event is not sold out — purchase is available!",
       });
     }
 
@@ -187,7 +197,7 @@ router.post("/", async (req, res, next) => {
 
     if (existing.rowCount > 0) {
       return res.status(409).json({
-        message: "Uporabnik je že na čakalni listi za ta dogodek!",
+        message: "User is already on the waitlist for this event!",
       });
     }
 
@@ -199,13 +209,25 @@ router.post("/", async (req, res, next) => {
       [user_id, event_id]
     );
 
+    // Calculate position in waitlist using ROW_NUMBER
+    const positionResult = await pool.query(
+      `SELECT position FROM (
+        SELECT id, ROW_NUMBER() OVER (ORDER BY joined_at ASC) as position
+        FROM waitlist 
+        WHERE event_id = $1
+      ) ranked
+      WHERE id = $2;`,
+      [event_id, inserted.rows[0].id]
+    );
+
     return res.status(201).json({
-      message: "Uporabnik uspešno dodan na čakalno listo!",
+      message: "User successfully added to waitlist!",
       entry: inserted.rows[0],
+      position: parseInt(positionResult.rows[0].position)
     });
 
   } catch (err) {
-    console.error("Napaka pri POST /waitlist:", err);
+    console.error("Error in POST /waitlist:", err);
     next(err);
   }
 });
@@ -217,7 +239,7 @@ router.delete("/:id", async (req, res, next) => {
   const id = Number(req.params.id);
 
   if (isNaN(id)) {
-    return res.status(400).json({ message: "ID mora biti število." });
+    return res.status(400).json({ message: "ID must be a number." });
   }
 
   try {
@@ -227,16 +249,16 @@ router.delete("/:id", async (req, res, next) => {
     );
 
     if (result.rowCount === 0) {
-      return res.status(404).json({ message: "Vnos ni bil najden." });
+      return res.status(404).json({ message: "Entry not found." });
     }
 
     return res.status(200).json({
-      message: "Uporabnik odstranjen iz čakalne liste.",
+      message: "User removed from waitlist.",
       deleted: result.rows[0],
     });
 
   } catch (err) {
-    console.error("Napaka pri DELETE /waitlist/:id:", err);
+    console.error("Error in DELETE /waitlist/:id:", err);
     next(err);
   }
 });
@@ -249,7 +271,7 @@ router.delete("/event/:event_id/user/:user_id", async (req, res, next) => {
 
   if (isNaN(event_id) || isNaN(user_id)) {
     return res.status(400).json({
-      message: "ID dogodka in uporabnika morata biti števili.",
+      message: "Event ID and User ID must be numbers.",
     });
   }
 
@@ -261,17 +283,17 @@ router.delete("/event/:event_id/user/:user_id", async (req, res, next) => {
 
     if (result.rowCount === 0) {
       return res.status(404).json({
-        message: "Uporabnik ni bil najden na čakalni listi!",
+        message: "User not found on waitlist!",
       });
     }
 
     return res.status(200).json({
-      message: "Uporabnik odstranjen iz čakalne liste!",
+      message: "User removed from waitlist!",
       deleted: result.rows[0],
     });
 
   } catch (err) {
-    console.error("Napaka pri DELETE /waitlist/event/:event_id/user/:user_id:", err);
+    console.error("Error in DELETE /waitlist/event/:event_id/user/:user_id:", err);
     next(err);
   }
 });
@@ -353,7 +375,7 @@ router.post("/accept-ticket/:transaction_id", async (req, res, next) => {
   const transaction_id = parseInt(req.params.transaction_id);
   
   if (isNaN(transaction_id)) {
-    return res.status(400).json({ message: "ID transakcije mora biti število." });
+    return res.status(400).json({ message: "Transaction ID must be a number." });
   }
 
   try {
@@ -364,7 +386,7 @@ router.post("/accept-ticket/:transaction_id", async (req, res, next) => {
     );
 
     if (txResult.rows.length === 0) {
-      return res.status(404).json({ message: "Rezervacija ni bila najdena ali je že potrjena!" });
+      return res.status(404).json({ message: "Reservation not found or already confirmed!" });
     }
 
     // Get ticket info
@@ -374,10 +396,21 @@ router.post("/accept-ticket/:transaction_id", async (req, res, next) => {
     );
 
     if (ticketResult.rows.length === 0) {
-      return res.status(404).json({ message: "Vstopnica ni bila najdena!" });
+      return res.status(404).json({ message: "Ticket not found!" });
     }
 
     const ticket = ticketResult.rows[0];
+
+    // Find the original ticket that's pending return for the same event and ticket type
+    const pendingReturnTicket = await pool.query(
+      `SELECT * FROM tickets 
+       WHERE event_id = $1 
+       AND ticket_type_id = $2 
+       AND status = 'pending_return' 
+       ORDER BY issued_at ASC 
+       LIMIT 1;`,
+      [ticket.event_id, ticket.ticket_type_id]
+    );
 
     // Update transaction to completed
     await pool.query(
@@ -391,27 +424,23 @@ router.post("/accept-ticket/:transaction_id", async (req, res, next) => {
       [ticket.id]
     );
 
-    // NOW increment tickets_sold
-    await pool.query(
-      `UPDATE ticket_types SET tickets_sold = tickets_sold + 1 WHERE id = $1;`,
-      [ticket.ticket_type_id]
-    );
+    // If there was a ticket pending return, NOW refund it
+    if (pendingReturnTicket.rows.length > 0) {
+      const returnedTicket = pendingReturnTicket.rows[0];
+      await pool.query(
+        `UPDATE tickets SET status = 'refunded' WHERE id = $1;`,
+        [returnedTicket.id]
+      );
+    }
 
-    // Update event's tickets_sold
-    await pool.query(
-      `UPDATE events 
-       SET tickets_sold = (
-         SELECT COALESCE(SUM(tickets_sold), 0) 
-         FROM ticket_types 
-         WHERE event_id = $1
-       )
-       WHERE id = $1;`,
-      [ticket.event_id]
-    );
+    // Decrement tickets_sold by 1 (removing pending_return ticket) then increment by 1 (adding new active ticket)
+    // Net effect: tickets_sold stays the same, just ownership changes
+    // So we don't need to update tickets_sold count
 
     return res.status(200).json({
-      message: "Vstopnica uspešno sprejeta!",
-      ticket: ticket
+      message: "Ticket accepted successfully! Previous owner has received a refund.",
+      ticket: ticket,
+      refunded_ticket_id: pendingReturnTicket.rows[0]?.id
     });
 
   } catch (err) {
@@ -427,7 +456,7 @@ router.post("/decline-ticket/:transaction_id", async (req, res, next) => {
   const transaction_id = parseInt(req.params.transaction_id);
   
   if (isNaN(transaction_id)) {
-    return res.status(400).json({ message: "ID transakcije mora biti število." });
+    return res.status(400).json({ message: "Transaction ID must be a number." });
   }
 
   try {
@@ -438,7 +467,7 @@ router.post("/decline-ticket/:transaction_id", async (req, res, next) => {
     );
 
     if (txResult.rows.length === 0) {
-      return res.status(404).json({ message: "Rezervacija ni bila najdena!" });
+      return res.status(404).json({ message: "Reservation not found!" });
     }
 
     // Get ticket info
@@ -448,7 +477,7 @@ router.post("/decline-ticket/:transaction_id", async (req, res, next) => {
     );
 
     if (ticketResult.rows.length === 0) {
-      return res.status(404).json({ message: "Vstopnica ni bila najdena!" });
+      return res.status(404).json({ message: "Ticket not found!" });
     }
 
     const ticket = ticketResult.rows[0];
@@ -469,7 +498,7 @@ router.post("/decline-ticket/:transaction_id", async (req, res, next) => {
     const nextAssignment = await assignTicketToWaitlist(ticket.event_id, ticket.ticket_type_id);
 
     return res.status(200).json({
-      message: "Rezervacija zavrnjena.",
+      message: "Reservation declined.",
       assigned_to_next: nextAssignment.assigned
     });
 

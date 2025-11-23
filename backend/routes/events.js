@@ -362,7 +362,7 @@ router.get("/:id/analytics", async (req, res, next) => {
       [id]
     );
 
-    // Get payment methods breakdown
+    // Get payment methods breakdown (exclude 'waitlist' as it's internal system status)
     const paymentMethodsResult = await pool.query(
       `SELECT 
         t.payment_method,
@@ -370,7 +370,7 @@ router.get("/:id/analytics", async (req, res, next) => {
         SUM(t.total_price) as total_revenue
        FROM transactions t
        INNER JOIN tickets tk ON tk.transaction_id = t.id
-       WHERE tk.event_id = $1 AND t.status = 'completed'
+       WHERE tk.event_id = $1 AND t.status = 'completed' AND t.payment_method != 'waitlist'
        GROUP BY t.payment_method
        ORDER BY total_revenue DESC`,
       [id]

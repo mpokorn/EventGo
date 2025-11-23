@@ -89,10 +89,11 @@ export default function EventDetail() {
         });
 
         setJoined(true);
-        setMessage("Dodani ste na čakalno listo!");
+        const position = res.data.position;
+        setMessage(`You've been added to the waitlist! You are #${position} in line.`);
         setMessageType("success");
       } catch (err) {
-        setMessage(err.response?.data?.message || "Napaka pri čakalni listi.");
+        setMessage(err.response?.data?.message || "Error joining waitlist.");
         setMessageType("error");
       }
     });
@@ -104,12 +105,12 @@ export default function EventDetail() {
   const allTicketTypesSoldOut = event.ticket_types?.length > 0 
     ? event.ticket_types.every(t => {
         const soldOut = t.tickets_sold >= t.total_tickets;
-        console.log(`🔍 Checking ${t.type}: ${t.tickets_sold}/${t.total_tickets} = ${soldOut ? 'SOLD OUT' : 'AVAILABLE'}`);
+        //console.log(`🔍 Checking ${t.type}: ${t.tickets_sold}/${t.total_tickets} = ${soldOut ? 'SOLD OUT' : 'AVAILABLE'}`);
         return soldOut;
       })
     : event.tickets_sold >= event.total_tickets;
   
-  console.log('🎪 Is event sold out?', allTicketTypesSoldOut);
+  //console.log('🎪 Is event sold out?', allTicketTypesSoldOut);
   const isSoldOut = allTicketTypesSoldOut;
 
   return (

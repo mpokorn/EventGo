@@ -10,7 +10,7 @@ router.get("/:event_id", async (req, res, next) => {
   const { event_id } = req.params;
 
   if (isNaN(event_id)) {
-    return res.status(400).json({ message: "ID dogodka mora biti število." });
+    return res.status(400).json({ message: "Event ID must be a number." });
   }
 
   try {
@@ -34,12 +34,12 @@ router.get("/:event_id", async (req, res, next) => {
     );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ message: "Za ta dogodek ni definiranih vrst vstopnic." });
+      return res.status(404).json({ message: "No ticket types defined for this event." });
     }
 
     res.status(200).json(result.rows);
   } catch (err) {
-    console.error("Napaka pri GET /ticket-types/:event_id:", err);
+    console.error("Error in GET /ticket-types/:event_id:", err);
     next(err);
   }
 });
@@ -52,7 +52,7 @@ router.post("/", async (req, res, next) => {
 
   if (!event_id || !type || !price || !total_tickets) {
     return res.status(400).json({
-      message: "Manjkajo podatki o vstopnici ali pa niso pravilno strukturirani!",
+      message: "Missing or improperly structured ticket data!",
     });
   }
 
@@ -60,7 +60,7 @@ router.post("/", async (req, res, next) => {
     // Verify that the event exists before creating ticket types
     const eventCheck = await pool.query(`SELECT id FROM events WHERE id = $1`, [event_id]);
     if (eventCheck.rowCount === 0) {
-      return res.status(404).json({ message: "Dogodek s tem ID-jem ne obstaja!" });
+      return res.status(404).json({ message: "Event with this ID does not exist!" });
     }
 
     const result = await pool.query(
@@ -85,11 +85,11 @@ router.post("/", async (req, res, next) => {
     );
 
     res.status(201).json({
-      message: "Vrsta vstopnice uspešno dodana!",
+      message: "Ticket type successfully added!",
       ticket_type: result.rows[0],
     });
   } catch (err) {
-    console.error("Napaka pri POST /ticket-types:", err);
+    console.error("Error in POST /ticket-types:", err);
     next(err);
   }
 });
@@ -102,7 +102,7 @@ router.patch("/:id", async (req, res, next) => {
   const { type, price, total_tickets, tickets_sold } = req.body;
 
   if (isNaN(id)) {
-    return res.status(400).json({ message: "ID vstopnice mora biti število." });
+    return res.status(400).json({ message: "Ticket type ID must be a number." });
   }
 
   try {
@@ -121,7 +121,7 @@ router.patch("/:id", async (req, res, next) => {
     );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ message: "Vrsta vstopnice ni bila najdena!" });
+      return res.status(404).json({ message: "Ticket type not found!" });
     }
 
     // Sync event's total_tickets and tickets_sold
@@ -143,11 +143,11 @@ router.patch("/:id", async (req, res, next) => {
     );
 
     res.status(200).json({
-      message: "Vrsta vstopnice uspešno posodobljena!",
+      message: "Ticket type successfully updated!",
       ticket_type: result.rows[0],
     });
   } catch (err) {
-    console.error("Napaka pri PATCH /ticket-types/:id:", err);
+    console.error("Error in PATCH /ticket-types/:id:", err);
     next(err);
   }
 });
@@ -159,7 +159,7 @@ router.delete("/:id", async (req, res, next) => {
   const { id } = req.params;
 
   if (isNaN(id)) {
-    return res.status(400).json({ message: "ID mora biti število." });
+    return res.status(400).json({ message: "ID must be a number." });
   }
 
   try {
@@ -171,7 +171,7 @@ router.delete("/:id", async (req, res, next) => {
 
     if (parseInt(usageCheck.rows[0].sold) > 0) {
       return res.status(400).json({
-        message: "Tega tipa vstopnic ni mogoče izbrisati, ker so že bile prodane!",
+        message: "Cannot delete this ticket type because tickets have already been sold!",
       });
     }
 
@@ -181,7 +181,7 @@ router.delete("/:id", async (req, res, next) => {
     );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ message: "Vrsta vstopnice ni bila najdena!" });
+      return res.status(404).json({ message: "Ticket type not found!" });
     }
 
     // Sync event's total_tickets after deletion
@@ -203,11 +203,11 @@ router.delete("/:id", async (req, res, next) => {
     );
 
     res.status(200).json({
-      message: "Vrsta vstopnice uspešno izbrisana!",
+      message: "Ticket type successfully deleted!",
       deleted: result.rows[0],
     });
   } catch (err) {
-    console.error("Napaka pri DELETE /ticket-types/:id:", err);
+    console.error("Error in DELETE /ticket-types/:id:", err);
     next(err);
   }
 });
@@ -221,7 +221,7 @@ router.put("/:id/recount", async (req, res, next) => {
     )
     WHERE id = $1;
   `, [id]);
-  res.json({ message: "Število prodanih vstopnic osveženo!" });
+  res.json({ message: "Number of sold tickets refreshed!" });
 });
 
 // Sync ALL ticket types and events (useful for fixing data)
@@ -259,7 +259,7 @@ router.post("/sync-all", async (req, res, next) => {
       ticket_types_updated: result.rows
     });
   } catch (err) {
-    console.error("Napaka pri sync-all:", err);
+    console.error("Error in sync-all:", err);
     next(err);
   }
 });
@@ -285,7 +285,7 @@ router.get("/debug/:event_id", async (req, res, next) => {
       ticket_types: result.rows
     });
   } catch (err) {
-    console.error("Napaka pri debug:", err);
+    console.error("Error in debug:", err);
     next(err);
   }
 });

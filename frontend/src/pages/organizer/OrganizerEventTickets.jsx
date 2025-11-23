@@ -75,14 +75,16 @@ export default function OrganizerEventTickets() {
     }
   };
 
-  // Helpers
+  // Helpers - categorize tickets by status
   const activeTickets = tickets.filter((t) => t.status === "active");
+  const reservedTickets = tickets.filter((t) => t.status === "reserved");
+  const pendingReturnTickets = tickets.filter((t) => t.status === "pending_return");
   const refundedTickets = tickets.filter((t) => t.status === "refunded");
 
   return (
     <OrganizerLayout title="Tickets Sold">
       <div className="org-events-container">
-        <Link to="/organizer/events" className="org-btn ghost" style={{ alignSelf: 'flex-start', marginBottom: '1rem' }}>
+        <Link to="/organizer/events" className="org-btn ghost back">
           ← Back to Events
         </Link>
 
@@ -92,16 +94,80 @@ export default function OrganizerEventTickets() {
 
         {loading ? (
           <>
-            <h3 style={{ fontSize: '1.1rem', marginBottom: '0.75rem', marginTop: 'var(--space-xl)', color: 'var(--color-text-secondary)', fontWeight: 600 }}>
+            <h3 className="org-section-title muted spaced">
               Active Tickets
             </h3>
             <TicketListSkeleton count={4} />
           </>
         ) : !error && (
           <>
+            {/* SUMMARY STATS */}
+            <div className="org-stats-grid">
+              <div className="org-stat-card">
+                <div className="org-stat-label">Active</div>
+                <div className="org-stat-value success">{activeTickets.length}</div>
+              </div>
+              <div className="org-stat-card">
+                <div className="org-stat-label">Reserved (Waitlist)</div>
+                <div className="org-stat-value info">{reservedTickets.length}</div>
+              </div>
+              <div className="org-stat-card">
+                <div className="org-stat-label">Pending Return</div>
+                <div className="org-stat-value warning">{pendingReturnTickets.length}</div>
+              </div>
+              <div className="org-stat-card">
+                <div className="org-stat-label">Refunded</div>
+                <div className="org-stat-value danger">{refundedTickets.length}</div>
+              </div>
+            </div>
+
+            {/* RESERVED TICKETS (FROM WAITLIST) */}
+            {reservedTickets.length > 0 && (
+              <div className="org-section">
+                <h3 className="org-section-title info">
+                  🎫 Reserved Tickets - Awaiting Acceptance ({reservedTickets.length})
+                </h3>
+                <p className="org-section-subtitle">
+                  These tickets are offered to waitlist users and pending their acceptance.
+                </p>
+                <ul className="ticket-list">
+                  {reservedTickets.map((t) => {
+                    const transaction = transactionMap[t.transaction_id];
+                    return (
+                      <li key={t.id} className="ticket-item reserved">
+                        <div className="ticket-info">
+                          <strong>{t.ticket_type}</strong> – €{t.ticket_price}
+                          <div className="org-badge reserved">
+                            RESERVED
+                          </div>
+                          <div className="ticket-meta">
+                            <div><strong>Ticket ID:</strong> {t.id}</div>
+                            <div><strong>Status:</strong> <span className="status-reserved">reserved (waitlist offer)</span></div>
+                            <div><strong>Offered To:</strong> {t.buyer_name} (User ID: {t.user_id})</div>
+                            <div><strong>Issued At:</strong> {new Date(t.issued_at).toLocaleString()}</div>
+                            {transaction && (
+                              <>
+                                <div className="ticket-divider">
+                                  <strong>Transaction Details:</strong>
+                                </div>
+                                <div><strong>Transaction ID:</strong> #{transaction.id}</div>
+                                <div><strong>Total Price:</strong> €{transaction.total_price}</div>
+                                <div><strong>Payment Method:</strong> {transaction.payment_method}</div>
+                                <div><strong>Transaction Status:</strong> <span className="status-warning">{transaction.status}</span></div>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            )}
+
             {/* ACTIVE TICKETS */}
-            <div style={{ marginTop: 'var(--space-xl)' }}>
-              <h3 style={{ fontSize: '1.1rem', marginBottom: '0.75rem', color: 'var(--color-text-secondary)', fontWeight: 600 }}>
+            <div className="org-section">
+              <h3 className="org-section-title muted">
                 Active Tickets ({activeTickets.length})
               </h3>
               
@@ -123,7 +189,7 @@ export default function OrganizerEventTickets() {
                             <div><strong>Issued At:</strong> {new Date(t.issued_at).toLocaleString()}</div>
                             {transaction && (
                               <>
-                                <div style={{ marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid var(--color-border)' }}>
+                                <div className="ticket-divider">
                                   <strong>Transaction Details:</strong>
                                 </div>
                                 <div><strong>Transaction ID:</strong> #{transaction.id}</div>
@@ -149,9 +215,53 @@ export default function OrganizerEventTickets() {
               )}
             </div>
 
+            {/* PENDING RETURN TICKETS */}
+            {pendingReturnTickets.length > 0 && (
+              <div className="org-section large">
+                <h3 className="org-section-title warning">
+                   Pending Return ({pendingReturnTickets.length})
+                </h3>
+                <p className="org-section-subtitle">
+                  These tickets have been requested for return and are being offered to the waitlist.
+                </p>
+                <ul className="ticket-list">
+                  {pendingReturnTickets.map((t) => {
+                    const transaction = transactionMap[t.transaction_id];
+                    return (
+                      <li key={t.id} className="ticket-item pending">
+                        <div className="ticket-info">
+                          <strong>{t.ticket_type}</strong> – €{t.ticket_price}
+                          <div className="org-badge pending">
+                            PENDING RETURN
+                          </div>
+                          <div className="ticket-meta">
+                            <div><strong>Ticket ID:</strong> {t.id}</div>
+                            <div><strong>Status:</strong> <span className="status-pending">pending return</span></div>
+                            <div><strong>Original Buyer:</strong> {t.buyer_name} (User ID: {t.user_id})</div>
+                            <div><strong>Issued At:</strong> {new Date(t.issued_at).toLocaleString()}</div>
+                            {transaction && (
+                              <>
+                                <div className="ticket-divider">
+                                  <strong>Transaction Details:</strong>
+                                </div>
+                                <div><strong>Transaction ID:</strong> #{transaction.id}</div>
+                                <div><strong>Total Price:</strong> €{transaction.total_price}</div>
+                                <div><strong>Payment Method:</strong> {transaction.payment_method}</div>
+                                <div><strong>Transaction Status:</strong> {transaction.status}</div>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            )}
+
             {/* REFUNDED TICKETS */}
-            <div style={{ marginTop: 'var(--space-2xl)' }}>
-              <h3 style={{ fontSize: '1.1rem', marginBottom: '0.75rem', color: 'var(--color-text-secondary)', fontWeight: 600 }}>
+            <div className="org-section large">
+              <h3 className="org-section-title muted">
                 Refunded Tickets ({refundedTickets.length})
               </h3>
               
@@ -163,17 +273,17 @@ export default function OrganizerEventTickets() {
                     const transaction = transactionMap[t.transaction_id];
 
                     return (
-                      <li key={t.id} className="ticket-item" style={{ opacity: 0.7 }}>
+                      <li key={t.id} className="ticket-item muted">
                         <div className="ticket-info">
                           <strong>{t.ticket_type}</strong> – €{t.ticket_price}
                           <div className="ticket-meta">
                             <div><strong>Ticket ID:</strong> {t.id}</div>
-                            <div><strong>Status:</strong> <span style={{ color: 'var(--color-error)' }}>refunded</span></div>
+                            <div><strong>Status:</strong> <span className="status-error">refunded</span></div>
                             <div><strong>Buyer:</strong> {t.buyer_name} (User ID: {t.user_id})</div>
                             <div><strong>Issued At:</strong> {new Date(t.issued_at).toLocaleString()}</div>
                             {transaction && (
                               <>
-                                <div style={{ marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid var(--color-border)' }}>
+                                <div className="ticket-divider">
                                   <strong>Transaction Details:</strong>
                                 </div>
                                 <div><strong>Transaction ID:</strong> #{transaction.id}</div>

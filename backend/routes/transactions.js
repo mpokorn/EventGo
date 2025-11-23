@@ -28,7 +28,7 @@ router.get("/", async (req, res, next) => {
 
     res.status(200).json(result.rows);
   } catch (err) {
-    console.error("❌ Napaka pri GET /transactions:", err);
+    console.error("❌ Error in GET /transactions:", err);
     next(err);
   }
 });
@@ -39,13 +39,13 @@ router.get("/", async (req, res, next) => {
 router.get("/user/:id", async (req, res, next) => {
   const userId = parseInt(req.params.id);
 
-  //  Basic input validation
+  // Basic input validation
   if (isNaN(userId)) {
-    return res.status(400).json({ message: "ID mora biti število." });
+    return res.status(400).json({ message: "ID must be a number." });
   }
 
   try {
-    //  Check if user exists
+    // Check if user exists
     const userCheck = await pool.query(
       `SELECT id, first_name, last_name FROM users WHERE id = $1;`,
       [userId]
@@ -53,11 +53,11 @@ router.get("/user/:id", async (req, res, next) => {
 
     if (userCheck.rows.length === 0) {
       return res.status(404).json({
-        message: `Uporabnik z ID ${userId} ne obstaja.`,
+        message: `User with ID ${userId} does not exist.`,
       });
     }
 
-    //  Fetch user transactions
+    // Fetch user transactions
     const transactionsResult = await pool.query(
       `
       SELECT 
@@ -80,22 +80,22 @@ router.get("/user/:id", async (req, res, next) => {
       [userId]
     );
 
-    //  If no transactions found
+    // If no transactions found
     if (transactionsResult.rows.length === 0) {
       return res.status(200).json({
-        message: `Uporabnik ${userCheck.rows[0].first_name} ${userCheck.rows[0].last_name} trenutno nima nobenih transakcij.`,
+        message: `User ${userCheck.rows[0].first_name} ${userCheck.rows[0].last_name} currently has no transactions.`,
         transactions: [],
       });
     }
 
-    //  Success: return user's transactions
+    // Success: return user's transactions
     res.status(200).json({
-      message: `Najdene transakcije za uporabnika ${userCheck.rows[0].first_name} ${userCheck.rows[0].last_name}.`,
+      message: `Transactions found for user ${userCheck.rows[0].first_name} ${userCheck.rows[0].last_name}.`,
       transactions: transactionsResult.rows,
     });
 
   } catch (err) {
-    console.error(" Napaka pri GET /transactions/user/:id:", err);
+    console.error(" Error in GET /transactions/user/:id:", err);
     next(err);
   }
 });
@@ -108,7 +108,7 @@ router.get("/:id", async (req, res, next) => {
   const id = parseInt(req.params.id);
 
   if (isNaN(id)) {
-    return res.status(400).json({ message: "ID mora biti število." });
+    return res.status(400).json({ message: "ID must be a number." });
   }
 
   try {
@@ -131,7 +131,7 @@ router.get("/:id", async (req, res, next) => {
     );
 
     if (transactionResult.rows.length === 0) {
-      return res.status(404).json({ message: "Transakcija ni bila najdena!" });
+      return res.status(404).json({ message: "Transaction not found!" });
     }
 
     const ticketsResult = await pool.query(
@@ -157,7 +157,7 @@ router.get("/:id", async (req, res, next) => {
 
     res.status(200).json(transaction);
   } catch (err) {
-    console.error(" Napaka pri GET /transactions/:id:", err);
+    console.error(" Error in GET /transactions/:id:", err);
     next(err);
   }
 });
@@ -169,7 +169,7 @@ router.post("/", async (req, res, next) => {
   const { user_id, total_price, status, payment_method, reference_code } = req.body;
 
   if (!user_id || !total_price) {
-    return res.status(400).json({ message: "Manjkajo podatki za ustvarjanje transakcije!" });
+    return res.status(400).json({ message: "Missing required data to create transaction!" });
   }
 
   try {
@@ -183,11 +183,11 @@ router.post("/", async (req, res, next) => {
     );
 
     res.status(201).json({
-      message: "Transakcija uspešno dodana!",
+      message: "Transaction successfully added!",
       transaction: result.rows[0],
     });
   } catch (err) {
-    console.error(" Napaka pri POST /transactions:", err);
+    console.error(" Error in POST /transactions:", err);
     next(err);
   }
 });
@@ -199,7 +199,7 @@ router.delete("/:id", async (req, res, next) => {
   const id = parseInt(req.params.id);
 
   if (isNaN(id)) {
-    return res.status(400).json({ message: "ID mora biti število." });
+    return res.status(400).json({ message: "ID must be a number." });
   }
 
   try {
@@ -209,15 +209,15 @@ router.delete("/:id", async (req, res, next) => {
     );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ message: "Transakcija ni bila najdena!" });
+      return res.status(404).json({ message: "Transaction not found!" });
     }
 
     res.status(200).json({
-      message: "Transakcija uspešno izbrisana!",
+      message: "Transaction successfully deleted!",
       deleted: result.rows[0],
     });
   } catch (err) {
-    console.error(" Napaka pri DELETE /transactions/:id:", err);
+    console.error(" Error in DELETE /transactions/:id:", err);
     next(err);
   }
 });

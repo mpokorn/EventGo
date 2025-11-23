@@ -142,6 +142,13 @@
   font-size: 0.95rem;
 }
 
+.waitlist-position {
+  color: var(--color-primary);
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-top: 0.25rem;
+}
+
 .event-actions a {
   font-size: 0.95rem;
   font-weight: 500;
@@ -264,4 +271,71 @@
 
 .profile-tickets h3:first-of-type {
   margin-top: 0;
+}
+
+/* ========================================
+   Section Title Variants
+======================================== */
+
+.profile-tickets h3.success {
+  color: #4CAF50;
+}
+
+.profile-tickets h3.warning {
+  color: #FF9800;
+}
+
+.profile-tickets h3.spaced {
+  margin-top: var(--space-xl);
+}
+
+/* ========================================
+   Ticket Status Variants
+======================================== */
+
+.ticket-item.pending-return {
+  border-left: 4px solid #FF9800;
+}
+
+.ticket-item.refunded {
+  border-left: 4px solid #4CAF50;
+  opacity: 0.8;
+}
+
+.ticket-item.expired {
+  opacity: 0.6;
+}
+
+/* ========================================
+   Status Info Boxes
+======================================== */
+
+.ticket-status-box {
+  padding: 10px 14px;
+  border-radius: 6px;
+  margin-top: 10px;
+  font-size: 0.9rem;
+  border: 1px solid;
+}
+
+.ticket-status-box strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.ticket-status-box .status-text {
+  font-size: 0.85rem;
+  opacity: 0.9;
+}
+
+.ticket-status-box.pending {
+  background-color: #FFF3E0;
+  color: #E65100;
+  border-color: #FFB74D;
+}
+
+.ticket-status-box.success {
+  background-color: #E8F5E9;
+  color: #2E7D32;
+  border-color: #81C784;
 }

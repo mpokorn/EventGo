@@ -17,13 +17,13 @@ export default function Events() {
       const params = new URLSearchParams(searchParams);
       if (!params.has("page")) params.set("page", "1");
       
-      console.log('Fetching events with params:', params.toString());
+      //console.log('Fetching events with params:', params.toString());
       const res = await api.get(`/events?${params.toString()}`);
-      console.log('Backend response:', res.data);
+      //console.log('Backend response:', res.data);
       
       const now = new Date();
       const eventsData = res.data.events || res.data || [];
-      console.log('Events from backend:', eventsData.length);
+      //console.log('Events from backend:', eventsData.length);
       
       const upcoming = eventsData.filter((e) => {
         const end = e?.end_datetime ? new Date(e.end_datetime) : null;
@@ -33,7 +33,7 @@ export default function Events() {
         return true;
       });
       
-      console.log('Upcoming events after filter:', upcoming.length);
+      //console.log('Upcoming events after filter:', upcoming.length);
       setEvents(upcoming);
       
       if (res.data.pagination) {
@@ -71,7 +71,6 @@ export default function Events() {
         <p className="no-events">No events found matching your criteria.</p>
       ) : (
         <>
-          <p className="results-count">{events.length} event{events.length !== 1 ? 's' : ''} found</p>
           <div className="events-grid">
             {events.map((e) => {
               const isSoldOut = e.tickets_sold >= e.total_tickets;

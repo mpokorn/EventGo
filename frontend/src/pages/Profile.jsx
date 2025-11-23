@@ -110,7 +110,7 @@ export default function Profile() {
 
   /* 🎫 HANDLE TICKET REFUND */
   const handleResell = async (ticketId, eventId) => {
-    if (!window.confirm("Are you sure you want to refund this ticket?")) return;
+    if (!window.confirm("Request ticket return? Your ticket will be offered to the waitlist. You'll keep access until someone else accepts it.")) return;
 
     try {
       const res = await api.put(`/tickets/${ticketId}/refund`);
@@ -160,13 +160,15 @@ export default function Profile() {
   };
 
 
-  /* SPLIT RESERVED, ACTIVE & EXPIRED TICKETS */
+  /* SPLIT RESERVED, ACTIVE, PENDING RETURN & EXPIRED TICKETS */
   const now = new Date();
   
   const reservedTickets = tickets.filter((t) => t?.status === "reserved");
   
+  const pendingReturnTickets = tickets.filter((t) => t?.status === "pending_return");
+  
   const activeTickets = tickets.filter((t) => {
-    if (t?.status === "reserved" || t?.status === "refunded") return false;
+    if (t?.status === "reserved" || t?.status === "refunded" || t?.status === "pending_return") return false;
     
     const end = t?.end_datetime ? new Date(t.end_datetime) : null;
     const start = t?.start_datetime ? new Date(t.start_datetime) : null;
@@ -177,8 +179,10 @@ export default function Profile() {
     return true;
   });
 
+  const refundedTickets = tickets.filter((t) => t?.status === "refunded");
+
   const expiredTickets = tickets.filter((t) => {
-    if (t?.status === "reserved" || t?.status === "refunded") return false;
+    if (t?.status === "reserved" || t?.status === "refunded" || t?.status === "pending_return") return false;
     
     const end = t?.end_datetime ? new Date(t.end_datetime) : null;
     const start = t?.start_datetime ? new Date(t.start_datetime) : null;
@@ -212,6 +216,8 @@ export default function Profile() {
             <ProfileTickets
               reservedTickets={reservedTickets}
               activeTickets={activeTickets}
+              pendingReturnTickets={pendingReturnTickets}
+              refundedTickets={refundedTickets}
               expiredTickets={expiredTickets}
               loading={loading}
               onResell={handleResell}
