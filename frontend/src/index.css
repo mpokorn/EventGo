@@ -118,6 +118,27 @@ html {
   text-rendering: optimizeLegibility;
 }
 
+/* Mobile scaling */
+@media (max-width: 768px) {
+  html {
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  html {
+    font-size: 13px;
+  }
+}
+
+/* Mobile safe area support */
+@supports(padding: env(safe-area-inset-top)) {
+  body {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
 body {
   margin: 0;
   min-width: 320px;
@@ -149,6 +170,13 @@ h3 { font-size: 1.5rem; }
 h4 { font-size: 1.25rem; }
 h5 { font-size: 1.125rem; }
 h6 { font-size: 1rem; }
+
+@media (max-width: 768px) {
+  h1 { font-size: 2rem; }
+  h2 { font-size: 1.75rem; }
+  h3 { font-size: 1.35rem; }
+  h4 { font-size: 1.15rem; }
+}
 
 p {
   margin: 0;

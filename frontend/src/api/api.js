@@ -1,8 +1,13 @@
 
 import axios from "axios";
 
+// Use network IP for mobile compatibility
+const BASE_URL = window.location.hostname === 'localhost' 
+  ? "http://localhost:5000/" 
+  : "http://192.168.1.201:5000/";
+
 const api = axios.create({
-  baseURL: "http://localhost:5000/", // backend URL is different
+  baseURL: BASE_URL,
 });
 
 let isRefreshing = false;
@@ -84,7 +89,7 @@ api.interceptors.response.use(
       }
 
       try {
-        const response = await axios.post('http://localhost:5000/users/refresh-token', {
+        const response = await axios.post(`${BASE_URL}users/refresh-token`, {
           refreshToken
         });
 

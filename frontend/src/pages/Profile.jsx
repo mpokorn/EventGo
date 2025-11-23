@@ -15,6 +15,7 @@ export default function Profile() {
   const { user } = useAuth();
 
   const [section, setSection] = useState("profile");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const [profileData, setProfileData] = useState({
     first_name: user?.first_name,
@@ -194,11 +195,28 @@ export default function Profile() {
   });
 
 
+  const handleSectionChange = (newSection) => {
+    setSection(newSection);
+    setSidebarOpen(false); // Close sidebar on mobile after selection
+  };
+
   return (
     <div className="dashboard-layout">
-      <DashboardSidebar section={section} setSection={setSection} />
+      <DashboardSidebar 
+        section={section} 
+        setSection={handleSectionChange}
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+      />
 
       <div className="dashboard-main">
+        <button 
+          className="mobile-menu-toggle" 
+          onClick={() => setSidebarOpen(!sidebarOpen)}
+          aria-label="Toggle menu"
+        >
+          ☰
+        </button>
         <div className="dashboard-content">
 
           {section === "profile" && (

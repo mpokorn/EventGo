@@ -151,11 +151,25 @@
 
 @media (max-width: 640px) {
   .header-content {
-    height: 56px;
+    height: 50px;
   }
   
   .header-logo {
-    font-size: 1.5rem;
+    font-size: 1.25rem;
+  }
+  
+  .nav-link {
+    font-size: 0.875rem;
+    padding: 0.5rem;
+  }
+  
+  .nav-link-primary {
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+  }
+  
+  .header-container {
+    padding: 0 var(--space-sm);
   }
   
   .nav-link {

@@ -1,16 +1,21 @@
 import { useAuth } from "../context/AuthContext";
 import "../styles/dashboard.css";
-import { FiUser, FiList, FiClock, FiCalendar } from "react-icons/fi";
+import { FiUser, FiList, FiClock, FiCalendar, FiX } from "react-icons/fi";
 
-export default function DashboardSidebar({ section, setSection }) {
+export default function DashboardSidebar({ section, setSection, isOpen, onClose }) {
   const { user } = useAuth();
 
   // FIX: If user is null, don't render organizer section
   const isOrganizer = user?.role === "organizer";
 
   return (
-    <div className="dashboard-sidebar">
-      <div className="sidebar-title">My Profile</div>
+    <div className={`dashboard-sidebar ${isOpen ? 'open' : ''}`}>
+      <div className="sidebar-header">
+        <div className="sidebar-title">My Profile</div>
+        <button className="sidebar-close" onClick={onClose} aria-label="Close menu">
+          <FiX />
+        </button>
+      </div>
 
       <div className="sidebar-menu">
         <div
