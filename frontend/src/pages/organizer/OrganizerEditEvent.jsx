@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 
 import OrganizerLayout from "../../components/OrganizerLayout";
@@ -172,6 +172,10 @@ export default function OrganizerEditEvent() {
 
   return (
     <OrganizerLayout title="Edit Event">
+      <Link to="/organizer/events" className="org-btn ghost" style={{ alignSelf: 'flex-start', marginBottom: '1rem' }}>
+        ← Back to Events
+      </Link>
+
       <div className="auth-card organizer-auth-card">
 
         <div className="text-center mb-6">

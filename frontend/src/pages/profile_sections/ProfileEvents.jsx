@@ -1,4 +1,4 @@
-export default function ProfileEvents({ events, loading }) {
+export default function ProfileEvents({ events = [], loading }) {
   return (
     <section className="profile-card profile-events">
       <h2>Your Events</h2>

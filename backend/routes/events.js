@@ -4,11 +4,14 @@ import pool from "../db.js";
 const router = express.Router();
 
 /* --------------------------------------
-    GET all events (sorted by start time)
+    GET all events with search and filtering
 -------------------------------------- */
 router.get("/", async (req, res, next) => {
   try {
-    const result = await pool.query(`
+    const { search, location, startDate, endDate, page = 1, limit = 12 } = req.query;
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+    
+    let queryText = `
       SELECT 
         e.id,
         e.title,
@@ -22,10 +25,62 @@ router.get("/", async (req, res, next) => {
         CONCAT(u.first_name, ' ', u.last_name) AS organizer_name
       FROM events e
       LEFT JOIN users u ON e.organizer_id = u.id
-      ORDER BY e.start_datetime ASC;
-    `);
+      WHERE 1=1
+    `;
+    
+    const params = [];
+    let paramCount = 1;
+    
+    // Search by title or description
+    if (search) {
+      queryText += ` AND (LOWER(e.title) LIKE $${paramCount} OR LOWER(e.description) LIKE $${paramCount})`;
+      params.push(`%${search.toLowerCase()}%`);
+      paramCount++;
+    }
+    
+    // Filter by location
+    if (location) {
+      queryText += ` AND LOWER(e.location) LIKE $${paramCount}`;
+      params.push(`%${location.toLowerCase()}%`);
+      paramCount++;
+    }
+    
+    // Filter by start date range
+    if (startDate) {
+      queryText += ` AND e.start_datetime >= $${paramCount}`;
+      params.push(startDate);
+      paramCount++;
+    }
+    
+    // Filter by end date range
+    if (endDate) {
+      queryText += ` AND e.start_datetime <= $${paramCount}`;
+      params.push(endDate);
+      paramCount++;
+    }
+    
+    queryText += ` ORDER BY e.start_datetime ASC`;
+    
+    // Get total count for pagination
+    const countQuery = queryText.replace(/SELECT .* FROM/, 'SELECT COUNT(*) FROM').split('ORDER BY')[0];
+    const countResult = await pool.query(countQuery, params);
+    const totalEvents = parseInt(countResult.rows[0].count);
+    
+    // Add pagination
+    queryText += ` LIMIT $${paramCount} OFFSET $${paramCount + 1}`;
+    params.push(parseInt(limit), offset);
+    
+    const result = await pool.query(queryText, params);
 
-    res.status(200).json(result.rows);
+    res.status(200).json({
+      events: result.rows,
+      pagination: {
+        currentPage: parseInt(page),
+        totalPages: Math.ceil(totalEvents / parseInt(limit)),
+        totalEvents,
+        eventsPerPage: parseInt(limit)
+      }
+    });
   } catch (err) {
     console.error("Napaka pri GET /events:", err);
     next(err);
@@ -253,6 +308,87 @@ router.put("/:id", async (req, res, next) => {
 });
 
 
+
+/* --------------------------------------
+   Get event analytics
+-------------------------------------- */
+router.get("/:id/analytics", async (req, res, next) => {
+  const { id } = req.params;
+
+  try {
+    // Get ticket types with sales data
+    const ticketTypesResult = await pool.query(
+      `SELECT id, type, price, total_tickets, tickets_sold
+       FROM ticket_types
+       WHERE event_id = $1
+       ORDER BY price ASC`,
+      [id]
+    );
+
+    // Get total revenue and transaction count
+    const revenueResult = await pool.query(
+      `SELECT 
+        COALESCE(SUM(t.total_price), 0) as total_revenue,
+        COUNT(DISTINCT t.id) as transaction_count
+       FROM transactions t
+       INNER JOIN tickets tk ON tk.transaction_id = t.id
+       WHERE tk.event_id = $1 AND t.status = 'completed'`,
+      [id]
+    );
+
+    // Get waitlist count
+    const waitlistResult = await pool.query(
+      `SELECT COUNT(*) as waitlist_count
+       FROM waitlist
+       WHERE event_id = $1`,
+      [id]
+    );
+
+    // Get recent sales (last 10)
+    const recentSalesResult = await pool.query(
+      `SELECT 
+        tk.id,
+        tt.type as ticket_type,
+        tt.price,
+        CONCAT(u.first_name, ' ', u.last_name) as buyer_name,
+        t.created_at
+       FROM tickets tk
+       INNER JOIN ticket_types tt ON tk.ticket_type_id = tt.id
+       INNER JOIN transactions t ON tk.transaction_id = t.id
+       INNER JOIN users u ON tk.user_id = u.id
+       WHERE tk.event_id = $1 AND tk.status = 'active'
+       ORDER BY t.created_at DESC
+       LIMIT 10`,
+      [id]
+    );
+
+    // Get payment methods breakdown
+    const paymentMethodsResult = await pool.query(
+      `SELECT 
+        t.payment_method,
+        COUNT(*) as count,
+        SUM(t.total_price) as total_revenue
+       FROM transactions t
+       INNER JOIN tickets tk ON tk.transaction_id = t.id
+       WHERE tk.event_id = $1 AND t.status = 'completed'
+       GROUP BY t.payment_method
+       ORDER BY total_revenue DESC`,
+      [id]
+    );
+
+    res.status(200).json({
+      ticketTypes: ticketTypesResult.rows,
+      totalRevenue: parseFloat(revenueResult.rows[0].total_revenue).toFixed(2),
+      transactionCount: parseInt(revenueResult.rows[0].transaction_count),
+      waitlistCount: parseInt(waitlistResult.rows[0].waitlist_count),
+      recentSales: recentSalesResult.rows,
+      paymentMethods: paymentMethodsResult.rows,
+    });
+  } catch (err) {
+    console.error("Error getting event analytics:", err);
+    next(err);
+  }
+});
 
 /* --------------------------------------
    Delete event (only organizer or admin)

@@ -85,6 +85,20 @@ export default function OrganizerEvents() {
                   Tickets
                 </Link>
 
+                <Link
+                  to={`/organizer/events/${ev.id}/waitlist`}
+                  className="org-btn small ghost"
+                >
+                  Waitlist
+                </Link>
+
+                <Link
+                  to={`/organizer/events/${ev.id}/analytics`}
+                  className="org-btn small ghost"
+                >
+                  Analytics
+                </Link>
+
                 <button
                   onClick={() => handleDelete(ev.id)}
                   className="org-btn small danger"

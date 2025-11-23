@@ -38,18 +38,12 @@ router.get("/", async (req, res, next) => {
 
     const result = await pool.query(query, params);
 
-    if (result.rowCount === 0) {
-      return res.status(200).json({
-        message: "Ni najdenih vnosov na čakalni listi.",
-        waitlist: [],
-      });
-    }
-
-    res.status(200).json({
+    return res.status(200).json({
       message: "Uspešno pridobljeni vnosi čakalne liste.",
       total_entries: result.rowCount,
       waitlist: result.rows,
     });
+
   } catch (err) {
     console.error(" Napaka pri GET /waitlist:", err);
     next(err);
@@ -57,7 +51,7 @@ router.get("/", async (req, res, next) => {
 });
 
 /* --------------------------------------
-    Get all users on the waitlist for a specific event
+  Get waitlist for a specific event
 -------------------------------------- */
 router.get("/event/:event_id", async (req, res, next) => {
   const { event_id } = req.params;
@@ -67,7 +61,6 @@ router.get("/event/:event_id", async (req, res, next) => {
   }
 
   try {
-    //  Check if event exists
     const eventCheck = await pool.query(
       `SELECT id, title FROM events WHERE id = $1;`,
       [event_id]
@@ -77,7 +70,6 @@ router.get("/event/:event_id", async (req, res, next) => {
       return res.status(404).json({ message: "Dogodek ne obstaja!" });
     }
 
-    //  Fetch waitlist entries
     const result = await pool.query(
       `
       SELECT 
@@ -94,19 +86,13 @@ router.get("/event/:event_id", async (req, res, next) => {
       [event_id]
     );
 
-    if (result.rowCount === 0) {
-      return res.status(200).json({
-        message: `Čakalna lista za dogodek "${eventCheck.rows[0].title}" je prazna.`,
-        waitlist: [],
-      });
-    }
-
-    res.status(200).json({
-      event_id: event_id,
+    return res.status(200).json({
+      event_id,
       event_title: eventCheck.rows[0].title,
       total_waiting: result.rowCount,
       waitlist: result.rows,
     });
+
   } catch (err) {
     console.error(" Napaka pri GET /waitlist/event/:event_id:", err);
     next(err);
@@ -114,7 +100,7 @@ router.get("/event/:event_id", async (req, res, next) => {
 });
 
 /* --------------------------------------
-   Get all waitlist entries for a specific user
+  Get waitlist for a specific user
 -------------------------------------- */
 router.get("/user/:user_id", async (req, res, next) => {
   const { user_id } = req.params;
@@ -145,18 +131,16 @@ router.get("/user/:user_id", async (req, res, next) => {
       [user_id]
     );
 
-    return res.status(200).json({
-      waitlist: result.rows
-    });
+    return res.status(200).json({ waitlist: result.rows });
+
   } catch (err) {
     console.error("Error in GET /waitlist/user/:user_id:", err);
     next(err);
   }
 });
 
-
 /* --------------------------------------
-    Add a user to the waitlist for an event
+  Add user to waitlist
 -------------------------------------- */
 router.post("/", async (req, res, next) => {
   const { user_id, event_id } = req.body;
@@ -168,20 +152,36 @@ router.post("/", async (req, res, next) => {
   }
 
   try {
-    //  Validate user and event exist
-    const userCheck = await pool.query(`SELECT id, first_name, last_name, email FROM users WHERE id = $1;`, [user_id]);
+    // Validate user
+    const userCheck = await pool.query(
+      `SELECT id FROM users WHERE id = $1`,
+      [user_id]
+    );
     if (userCheck.rowCount === 0) {
       return res.status(404).json({ message: "Uporabnik ne obstaja!" });
     }
 
-    const eventCheck = await pool.query(`SELECT id, title, start_datetime FROM events WHERE id = $1;`, [event_id]);
+    // Validate event
+    const eventCheck = await pool.query(
+      `SELECT id, total_tickets, tickets_sold FROM events WHERE id = $1`,
+      [event_id]
+    );
     if (eventCheck.rowCount === 0) {
       return res.status(404).json({ message: "Dogodek ne obstaja!" });
     }
 
-    // ✅ Prevent duplicate entries
+    const event = eventCheck.rows[0];
+
+    // Check if sold out
+    if (event.tickets_sold < event.total_tickets) {
+      return res.status(400).json({
+        message: "Dogodek še ni razprodan — nakup je možen!",
+      });
+    }
+
+    // Prevent duplicate entry
     const existing = await pool.query(
-      `SELECT id FROM waitlist WHERE user_id = $1 AND event_id = $2;`,
+      `SELECT id FROM waitlist WHERE user_id = $1 AND event_id = $2`,
       [user_id, event_id]
     );
 
@@ -191,53 +191,30 @@ router.post("/", async (req, res, next) => {
       });
     }
 
-    // Insert into waitlist
+    // Insert
     const inserted = await pool.query(
-      `
-      INSERT INTO waitlist (user_id, event_id)
-      VALUES ($1, $2)
-      RETURNING id, user_id, event_id, joined_at;
-      `,
+      `INSERT INTO waitlist (user_id, event_id)
+       VALUES ($1, $2)
+       RETURNING *;`,
       [user_id, event_id]
     );
 
-    const entry = inserted.rows[0];
-
-    // Get joined details
-    const fullDetails = await pool.query(
-      `
-      SELECT 
-        w.id,
-        w.user_id,
-        (u.first_name || ' ' || u.last_name) AS user_name,
-        u.email AS user_email,
-        w.event_id,
-        e.title AS event_title,
-        e.start_datetime,
-        w.joined_at
-      FROM waitlist w
-      JOIN users u ON w.user_id = u.id
-      JOIN events e ON w.event_id = e.id
-      WHERE w.id = $1;
-      `,
-      [entry.id]
-    );
-
-    res.status(201).json({
+    return res.status(201).json({
       message: "Uporabnik uspešno dodan na čakalno listo!",
-      entry: fullDetails.rows[0],
+      entry: inserted.rows[0],
     });
+
   } catch (err) {
-    console.error(" Napaka pri POST /waitlist:", err);
+    console.error("Napaka pri POST /waitlist:", err);
     next(err);
   }
 });
 
 /* --------------------------------------
-   🟢 Remove a user from waitlist (by entry ID)
+  Remove user from waitlist (by entry ID)
 -------------------------------------- */
 router.delete("/:id", async (req, res, next) => {
-  const id = parseInt(req.params.id);
+  const id = Number(req.params.id);
 
   if (isNaN(id)) {
     return res.status(400).json({ message: "ID mora biti število." });
@@ -250,13 +227,14 @@ router.delete("/:id", async (req, res, next) => {
     );
 
     if (result.rowCount === 0) {
-      return res.status(404).json({ message: "Vnos na čakalni listi ni bil najden!" });
+      return res.status(404).json({ message: "Vnos ni bil najden." });
     }
 
-    res.status(200).json({
-      message: "Uporabnik uspešno odstranjen iz čakalne liste!",
+    return res.status(200).json({
+      message: "Uporabnik odstranjen iz čakalne liste.",
       deleted: result.rows[0],
     });
+
   } catch (err) {
     console.error("Napaka pri DELETE /waitlist/:id:", err);
     next(err);
@@ -264,13 +242,15 @@ router.delete("/:id", async (req, res, next) => {
 });
 
 /* --------------------------------------
-    Remove user from waitlist by event & user
+  Remove user from waitlist by event + user
 -------------------------------------- */
 router.delete("/event/:event_id/user/:user_id", async (req, res, next) => {
   const { event_id, user_id } = req.params;
 
   if (isNaN(event_id) || isNaN(user_id)) {
-    return res.status(400).json({ message: "ID dogodka in uporabnika morata biti števili." });
+    return res.status(400).json({
+      message: "ID dogodka in uporabnika morata biti števili.",
+    });
   }
 
   try {
@@ -281,16 +261,220 @@ router.delete("/event/:event_id/user/:user_id", async (req, res, next) => {
 
     if (result.rowCount === 0) {
       return res.status(404).json({
-        message: "Uporabnik ni bil najden na čakalni listi za ta dogodek!",
+        message: "Uporabnik ni bil najden na čakalni listi!",
       });
     }
 
-    res.status(200).json({
-      message: "Uporabnik odstranjen iz čakalne liste za dogodek!",
+    return res.status(200).json({
+      message: "Uporabnik odstranjen iz čakalne liste!",
       deleted: result.rows[0],
     });
+
   } catch (err) {
-    console.error(" Napaka pri DELETE /waitlist/event/:event_id/user/:user_id:", err);
+    console.error("Napaka pri DELETE /waitlist/event/:event_id/user/:user_id:", err);
+    next(err);
+  }
+});
+
+/* --------------------------------------
+  Helper: Auto-assign ticket to next waitlist user
+  Called when a ticket is refunded
+  Creates a PENDING transaction that user must accept
+-------------------------------------- */
+export async function assignTicketToWaitlist(event_id, ticket_type_id) {
+  try {
+    // Find first person in waitlist
+    const waitlistResult = await pool.query(
+      `SELECT * FROM waitlist 
+       WHERE event_id = $1 
+       ORDER BY joined_at ASC 
+       LIMIT 1;`,
+      [event_id]
+    );
+
+    if (waitlistResult.rows.length === 0) {
+      return { assigned: false };
+    }
+
+    const waitlistUser = waitlistResult.rows[0];
+    
+    // Get ticket type and price
+    const ticketTypeResult = await pool.query(
+      `SELECT price FROM ticket_types WHERE id = $1;`,
+      [ticket_type_id]
+    );
+    const price = ticketTypeResult.rows[0]?.price || 0;
+
+    // Create PENDING transaction for the waitlist user (they must accept)
+    const txResult = await pool.query(
+      `INSERT INTO transactions (user_id, total_price, status, payment_method)
+       VALUES ($1, $2, 'pending', 'waitlist')
+       RETURNING id;`,
+      [waitlistUser.user_id, price]
+    );
+    const transaction_id = txResult.rows[0].id;
+
+    // Ticket status lifecycle:
+    //   'reserved' - Ticket is held for a user promoted from the waitlist; user must accept and complete payment to activate.
+    //   'active'   - Ticket is fully purchased and valid for event entry.
+    //   'refunded' - Ticket has been refunded and is no longer valid.
+    //
+    // Here, we create a ticket with 'reserved' status for the waitlist user. The ticket will become 'active' once the user accepts and completes payment.
+    await pool.query(
+      `INSERT INTO tickets (transaction_id, ticket_type_id, event_id, user_id, status)
+       VALUES ($1, $2, $3, $4, 'reserved');`,
+      [transaction_id, ticket_type_id, event_id, waitlistUser.user_id]
+    );
+
+    // Remove from waitlist (they now have a reserved ticket)
+    await pool.query(
+      `DELETE FROM waitlist WHERE id = $1;`,
+      [waitlistUser.id]
+    );
+
+    // Don't increment tickets_sold yet - only when they accept!
+
+    return { 
+      assigned: true, 
+      user_id: waitlistUser.user_id,
+      transaction_id: transaction_id
+    };
+
+  } catch (error) {
+    console.error("Error in assignTicketToWaitlist:", error);
+    throw error;
+  }
+}
+
+/* --------------------------------------
+  Accept reserved ticket from waitlist
+-------------------------------------- */
+router.post("/accept-ticket/:transaction_id", async (req, res, next) => {
+  const transaction_id = parseInt(req.params.transaction_id);
+  
+  if (isNaN(transaction_id)) {
+    return res.status(400).json({ message: "ID transakcije mora biti število." });
+  }
+
+  try {
+    // Get transaction and verify it's pending
+    const txResult = await pool.query(
+      `SELECT * FROM transactions WHERE id = $1 AND status = 'pending' AND payment_method = 'waitlist';`,
+      [transaction_id]
+    );
+
+    if (txResult.rows.length === 0) {
+      return res.status(404).json({ message: "Rezervacija ni bila najdena ali je že potrjena!" });
+    }
+
+    // Get ticket info
+    const ticketResult = await pool.query(
+      `SELECT * FROM tickets WHERE transaction_id = $1 AND status = 'reserved';`,
+      [transaction_id]
+    );
+
+    if (ticketResult.rows.length === 0) {
+      return res.status(404).json({ message: "Vstopnica ni bila najdena!" });
+    }
+
+    const ticket = ticketResult.rows[0];
+
+    // Update transaction to completed
+    await pool.query(
+      `UPDATE transactions SET status = 'completed' WHERE id = $1;`,
+      [transaction_id]
+    );
+
+    // Update ticket to active
+    await pool.query(
+      `UPDATE tickets SET status = 'active' WHERE id = $1;`,
+      [ticket.id]
+    );
+
+    // NOW increment tickets_sold
+    await pool.query(
+      `UPDATE ticket_types SET tickets_sold = tickets_sold + 1 WHERE id = $1;`,
+      [ticket.ticket_type_id]
+    );
+
+    // Update event's tickets_sold
+    await pool.query(
+      `UPDATE events 
+       SET tickets_sold = (
+         SELECT COALESCE(SUM(tickets_sold), 0) 
+         FROM ticket_types 
+         WHERE event_id = $1
+       )
+       WHERE id = $1;`,
+      [ticket.event_id]
+    );
+
+    return res.status(200).json({
+      message: "Vstopnica uspešno sprejeta!",
+      ticket: ticket
+    });
+
+  } catch (err) {
+    console.error("Error accepting ticket:", err);
+    next(err);
+  }
+});
+
+/* --------------------------------------
+  Decline reserved ticket from waitlist
+-------------------------------------- */
+router.post("/decline-ticket/:transaction_id", async (req, res, next) => {
+  const transaction_id = parseInt(req.params.transaction_id);
+  
+  if (isNaN(transaction_id)) {
+    return res.status(400).json({ message: "ID transakcije mora biti število." });
+  }
+
+  try {
+    // Get transaction and verify it's pending
+    const txResult = await pool.query(
+      `SELECT * FROM transactions WHERE id = $1 AND status = 'pending' AND payment_method = 'waitlist';`,
+      [transaction_id]
+    );
+
+    if (txResult.rows.length === 0) {
+      return res.status(404).json({ message: "Rezervacija ni bila najdena!" });
+    }
+
+    // Get ticket info
+    const ticketResult = await pool.query(
+      `SELECT * FROM tickets WHERE transaction_id = $1 AND status = 'reserved';`,
+      [transaction_id]
+    );
+
+    if (ticketResult.rows.length === 0) {
+      return res.status(404).json({ message: "Vstopnica ni bila najdena!" });
+    }
+
+    const ticket = ticketResult.rows[0];
+
+    // Update transaction to cancelled
+    await pool.query(
+      `UPDATE transactions SET status = 'cancelled' WHERE id = $1;`,
+      [transaction_id]
+    );
+
+    // Delete the reserved ticket
+    await pool.query(
+      `DELETE FROM tickets WHERE id = $1;`,
+      [ticket.id]
+    );
+
+    // Assign to next person in waitlist
+    const nextAssignment = await assignTicketToWaitlist(ticket.event_id, ticket.ticket_type_id);
+
+    return res.status(200).json({
+      message: "Rezervacija zavrnjena.",
+      assigned_to_next: nextAssignment.assigned
+    });
+
+  } catch (err) {
+    console.error("Error declining ticket:", err);
     next(err);
   }
 });

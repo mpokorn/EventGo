@@ -18,8 +18,8 @@ import OrganizerEvents from "./pages/organizer/OrganizerEvents";
 import OrganizerCreateEvent from "./pages/organizer/OrganizerCreateEvent";
 import OrganizerEditEvent from "./pages/organizer/OrganizerEditEvent";
 import OrganizerEventTickets from "./pages/organizer/OrganizerEventTickets";
-
-
+import OrganizerWaitlist from "./pages/organizer/OrganizerWaitlist";
+import OrganizerAnalytics from "./pages/organizer/OrganizerAnalytics";
 
 import Header from "./components/Header";
 import { AuthProvider } from "./context/AuthContext";
@@ -47,6 +47,7 @@ function Layout() {
         <Routes>
           {/* Public / user */}
           <Route path="/" element={<Events />} />
+          <Route path="/events" element={<Events />} />
           <Route path="/events/:id" element={<EventDetail />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
@@ -60,6 +61,8 @@ function Layout() {
           <Route path="/organizer/events/create" element={<OrganizerCreateEvent />} />
           <Route path="/organizer/events/:id/edit" element={<OrganizerEditEvent />} />
           <Route path="/organizer/events/:id/tickets" element={<OrganizerEventTickets />} />
+          <Route path="/organizer/events/:id/waitlist" element={<OrganizerWaitlist />} />
+          <Route path="/organizer/events/:id/analytics" element={<OrganizerAnalytics />} />
 
         </Routes>
       </main>

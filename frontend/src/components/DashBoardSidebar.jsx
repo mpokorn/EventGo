@@ -34,15 +34,12 @@ export default function DashboardSidebar({ section, setSection }) {
           <FiClock /> Waitlist
         </div>
 
-        {/* Organizer menu — only show when loaded and role matches */}
-        {isOrganizer && (
-          <div
-            className={`sidebar-item ${section === "events" ? "active" : ""}`}
-            onClick={() => setSection("events")}
-          >
-            <FiCalendar /> My Events
-          </div>
-        )}
+        <div
+          className={`sidebar-item ${section === "events" ? "active" : ""}`}
+          onClick={() => setSection("events")}
+        >
+          <FiCalendar /> My Events
+        </div>
       </div>
     </div>
   );

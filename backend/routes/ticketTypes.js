@@ -72,6 +72,18 @@ router.post("/", async (req, res, next) => {
       [event_id, type, price, total_tickets]
     );
 
+    // Sync event's total_tickets
+    await pool.query(
+      `UPDATE events
+       SET total_tickets = (
+         SELECT COALESCE(SUM(total_tickets), 0)
+         FROM ticket_types
+         WHERE event_id = $1
+       )
+       WHERE id = $1;`,
+      [event_id]
+    );
+
     res.status(201).json({
       message: "Vrsta vstopnice uspešno dodana!",
       ticket_type: result.rows[0],
@@ -111,6 +123,24 @@ router.patch("/:id", async (req, res, next) => {
     if (result.rows.length === 0) {
       return res.status(404).json({ message: "Vrsta vstopnice ni bila najdena!" });
     }
+
+    // Sync event's total_tickets and tickets_sold
+    const ticketTypeRow = result.rows[0];
+    await pool.query(
+      `UPDATE events
+       SET total_tickets = (
+         SELECT COALESCE(SUM(total_tickets), 0)
+         FROM ticket_types
+         WHERE event_id = $1
+       ),
+       tickets_sold = (
+         SELECT COALESCE(SUM(tickets_sold), 0)
+         FROM ticket_types
+         WHERE event_id = $1
+       )
+       WHERE id = $1;`,
+      [ticketTypeRow.event_id]
+    );
 
     res.status(200).json({
       message: "Vrsta vstopnice uspešno posodobljena!",
@@ -154,6 +184,24 @@ router.delete("/:id", async (req, res, next) => {
       return res.status(404).json({ message: "Vrsta vstopnice ni bila najdena!" });
     }
 
+    // Sync event's total_tickets after deletion
+    const deletedType = result.rows[0];
+    await pool.query(
+      `UPDATE events
+       SET total_tickets = (
+         SELECT COALESCE(SUM(total_tickets), 0)
+         FROM ticket_types
+         WHERE event_id = $1
+       ),
+       tickets_sold = (
+         SELECT COALESCE(SUM(tickets_sold), 0)
+         FROM ticket_types
+         WHERE event_id = $1
+       )
+       WHERE id = $1;`,
+      [deletedType.event_id]
+    );
+
     res.status(200).json({
       message: "Vrsta vstopnice uspešno izbrisana!",
       deleted: result.rows[0],
@@ -174,6 +222,72 @@ router.put("/:id/recount", async (req, res, next) => {
     WHERE id = $1;
   `, [id]);
   res.json({ message: "Število prodanih vstopnic osveženo!" });
+});
+
+// Sync ALL ticket types and events (useful for fixing data)
+router.post("/sync-all", async (req, res, next) => {
+  try {
+    // 1. Update all ticket_types.tickets_sold based on actual tickets
+    const result = await pool.query(`
+      UPDATE ticket_types tt
+      SET tickets_sold = (
+        SELECT COUNT(*) FROM tickets t 
+        WHERE t.ticket_type_id = tt.id
+      )
+      RETURNING id, type, tickets_sold, total_tickets;
+    `);
+
+    // 2. Update all events.total_tickets and tickets_sold from ticket_types
+    await pool.query(`
+      UPDATE events e
+      SET 
+        total_tickets = (
+          SELECT COALESCE(SUM(total_tickets), 0)
+          FROM ticket_types
+          WHERE event_id = e.id
+        ),
+        tickets_sold = (
+          SELECT COALESCE(SUM(tickets_sold), 0)
+          FROM ticket_types
+          WHERE event_id = e.id
+        );
+    `);
+
+    res.json({ 
+      message: "All ticket counts synchronized successfully!",
+      success: true,
+      ticket_types_updated: result.rows
+    });
+  } catch (err) {
+    console.error("Napaka pri sync-all:", err);
+    next(err);
+  }
+});
+
+// Debug endpoint to check ticket count discrepancies
+router.get("/debug/:event_id", async (req, res, next) => {
+  const { event_id } = req.params;
+  
+  try {
+    const result = await pool.query(`
+      SELECT 
+        tt.id as ticket_type_id,
+        tt.type,
+        tt.total_tickets,
+        tt.tickets_sold as stored_count,
+        (SELECT COUNT(*) FROM tickets t WHERE t.ticket_type_id = tt.id) as actual_count
+      FROM ticket_types tt
+      WHERE tt.event_id = $1;
+    `, [event_id]);
+    
+    res.json({
+      event_id,
+      ticket_types: result.rows
+    });
+  } catch (err) {
+    console.error("Napaka pri debug:", err);
+    next(err);
+  }
 });
 
 

@@ -23,6 +23,30 @@ export const generateToken = (user) => {
       role: user.role
     },
     JWT_SECRET,
-    { expiresIn: '24h' }
+    { expiresIn: '1h' } // Token expires in 1 hour
   );
+};
+
+export const generateRefreshToken = (user) => {
+  return jwt.sign(
+    { 
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      type: 'refresh'
+    },
+    JWT_SECRET,
+    { expiresIn: '30d' } // Refresh token expires in 30 days
+  );
+};
+
+export const verifyToken = (token) => {
+  try {
+    return jwt.verify(token, JWT_SECRET);
+  } catch (error) {
+    if (error.name === 'TokenExpiredError') {
+      throw new Error('Token has expired');
+    }
+    throw new Error('Invalid token');
+  }
 };

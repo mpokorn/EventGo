@@ -1,9 +1,12 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import '../styles/header.css';
 
 export default function Header() {
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
+  const [searchInput, setSearchInput] = useState('');
 
   return (
     <header className="main-header">
@@ -17,7 +20,18 @@ export default function Header() {
 
           {/* Search bar - Center */}
           <div className="header-search">
-            <div className="search-wrapper">
+            <form 
+              className="search-wrapper"
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (searchInput.trim()) {
+                  navigate(`/events?search=${encodeURIComponent(searchInput.trim())}`);
+                  setSearchInput('');
+                } else {
+                  navigate('/events');
+                }
+              }}
+            >
               <svg className="search-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path 
                   strokeLinecap="round"
@@ -29,10 +43,12 @@ export default function Header() {
 
               <input
                 type="text"
-                placeholder="Search a city, club, event..."
+                placeholder="Search events or locations..."
                 className="search-input"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
               />
-            </div>
+            </form>
           </div>
 
           {/* Navigation - Right */}

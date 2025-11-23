@@ -1,7 +1,7 @@
 // src/routes/users.js
 import express from "express";
 import pool from "../db.js";
-import { hashPassword, comparePassword, generateToken } from "../utils/auth.js";
+import { hashPassword, comparePassword, generateToken, generateRefreshToken, verifyToken } from "../utils/auth.js";
 
 const router = express.Router();
 
@@ -51,10 +51,12 @@ router.post("/register", async (req, res, next) => {
     );
 
     const token = generateToken(result.rows[0]);
+    const refreshToken = generateRefreshToken(result.rows[0]);
 
     res.status(201).json({
       message: "Registracija uspešna!",
       token,
+      refreshToken,
       user: result.rows[0]
     });
   } catch (err) {
@@ -97,10 +99,12 @@ router.post("/login", async (req, res, next) => {
     }
 
     const token = generateToken(user);
+    const refreshToken = generateRefreshToken(user);
 
     res.status(200).json({
       message: "Prijava uspešna!",
       token,
+      refreshToken,
       user: {
         id: user.id,
         first_name: user.first_name,
@@ -151,10 +155,12 @@ router.post("/organizer-register", async (req, res, next) => {
     );
 
     const token = generateToken(result.rows[0]);
+    const refreshToken = generateRefreshToken(result.rows[0]);
 
     res.status(201).json({
       message: "Registracija organizatorja uspešna!",
       token,
+      refreshToken,
       user: result.rows[0]
     });
   } catch (err) {
@@ -197,10 +203,12 @@ router.post("/organizer-login", async (req, res, next) => {
     }
 
     const token = generateToken(user);
+    const refreshToken = generateRefreshToken(user);
 
     res.status(200).json({
       message: "Prijava organizatorja uspešna!",
       token,
+      refreshToken,
       user: {
         id: user.id,
         first_name: user.first_name,
@@ -336,6 +344,57 @@ router.post("/", async (req, res, next) => {
   } catch (err) {
     console.error("Napaka pri POST /users:", err);
     next(err);
+  }
+});
+
+/* --------------------------------------
+    Refresh Token Endpoint
+-------------------------------------- */
+router.post("/refresh-token", async (req, res, next) => {
+  const { refreshToken } = req.body;
+
+  if (!refreshToken) {
+    return res.status(401).json({
+      message: "Refresh token is required"
+    });
+  }
+
+  try {
+    const decoded = verifyToken(refreshToken);
+
+    if (decoded.type !== 'refresh') {
+      return res.status(401).json({
+        message: "Invalid refresh token"
+      });
+    }
+
+    // Get fresh user data
+    const result = await pool.query(
+      "SELECT id, first_name, last_name, email, role FROM users WHERE id = $1",
+      [decoded.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        message: "User not found"
+      });
+    }
+
+    const user = result.rows[0];
+    const newToken = generateToken(user);
+    const newRefreshToken = generateRefreshToken(user);
+
+    res.status(200).json({
+      message: "Token refreshed successfully",
+      token: newToken,
+      refreshToken: newRefreshToken,
+      user
+    });
+  } catch (err) {
+    console.error("Error refreshing token:", err);
+    return res.status(401).json({
+      message: err.message || "Invalid or expired refresh token"
+    });
   }
 });
 

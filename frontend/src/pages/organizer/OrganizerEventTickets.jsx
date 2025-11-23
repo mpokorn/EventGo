@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 
 import OrganizerLayout from "../../components/OrganizerLayout";
 import { ticketService } from "../../api/ticketService";
 import { transactionService } from "../../api/transactionService";
+import { TicketListSkeleton } from "../../components/SkeletonLoaders";
 
 import "../../styles/organizer.css";
+import "../../styles/profile.css";
 
 export default function OrganizerEventTickets() {
   const { id } = useParams(); // event_id
@@ -80,99 +82,117 @@ export default function OrganizerEventTickets() {
   return (
     <OrganizerLayout title="Tickets Sold">
       <div className="org-events-container">
+        <Link to="/organizer/events" className="org-btn ghost" style={{ alignSelf: 'flex-start', marginBottom: '1rem' }}>
+          ← Back to Events
+        </Link>
+
         <h1 className="organizer-title">Tickets Sold</h1>
 
-        {loading && <p className="org-muted">Loading tickets...</p>}
         {error && <p className="org-error">{error}</p>}
 
-        {!loading && tickets.length === 0 && (
-          <p className="org-muted">No tickets sold for this event yet.</p>
-        )}
+        {loading ? (
+          <>
+            <h3 style={{ fontSize: '1.1rem', marginBottom: '0.75rem', marginTop: 'var(--space-xl)', color: 'var(--color-text-secondary)', fontWeight: 600 }}>
+              Active Tickets
+            </h3>
+            <TicketListSkeleton count={4} />
+          </>
+        ) : !error && (
+          <>
+            {/* ACTIVE TICKETS */}
+            <div style={{ marginTop: 'var(--space-xl)' }}>
+              <h3 style={{ fontSize: '1.1rem', marginBottom: '0.75rem', color: 'var(--color-text-secondary)', fontWeight: 600 }}>
+                Active Tickets ({activeTickets.length})
+              </h3>
+              
+              {activeTickets.length === 0 ? (
+                <p className="org-muted">No active tickets.</p>
+              ) : (
+                <ul className="ticket-list">
+                  {activeTickets.map((t) => {
+                    const transaction = transactionMap[t.transaction_id];
 
-        {/* ACTIVE TICKETS */}
-        <h2 className="organizer-title" style={{ marginTop: "2rem" }}>
-          Active Tickets
-        </h2>
+                    return (
+                      <li key={t.id} className="ticket-item">
+                        <div className="ticket-info">
+                          <strong>{t.ticket_type}</strong> – €{t.ticket_price}
+                          <div className="ticket-meta">
+                            <div><strong>Ticket ID:</strong> {t.id}</div>
+                            <div><strong>Status:</strong> {t.status}</div>
+                            <div><strong>Buyer:</strong> {t.buyer_name} (User ID: {t.user_id})</div>
+                            <div><strong>Issued At:</strong> {new Date(t.issued_at).toLocaleString()}</div>
+                            {transaction && (
+                              <>
+                                <div style={{ marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid var(--color-border)' }}>
+                                  <strong>Transaction Details:</strong>
+                                </div>
+                                <div><strong>Transaction ID:</strong> #{transaction.id}</div>
+                                <div><strong>Total Price:</strong> €{transaction.total_price}</div>
+                                <div><strong>Payment Method:</strong> {transaction.payment_method}</div>
+                                <div><strong>Transaction Status:</strong> {transaction.status}</div>
+                                <div><strong>Reference Code:</strong> {transaction.reference_code || 'N/A'}</div>
+                                <div><strong>Created At:</strong> {new Date(transaction.created_at).toLocaleString()}</div>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                        <button
+                          className="ticket-return-btn"
+                          onClick={() => refundTicket(t.id)}
+                        >
+                          Refund Ticket
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
 
-        {activeTickets.length === 0 ? (
-          <p className="org-muted">No active tickets.</p>
-        ) : (
-          activeTickets.map((t) => {
-            const transaction = transactionMap[t.transaction_id];
+            {/* REFUNDED TICKETS */}
+            <div style={{ marginTop: 'var(--space-2xl)' }}>
+              <h3 style={{ fontSize: '1.1rem', marginBottom: '0.75rem', color: 'var(--color-text-secondary)', fontWeight: 600 }}>
+                Refunded Tickets ({refundedTickets.length})
+              </h3>
+              
+              {refundedTickets.length === 0 ? (
+                <p className="org-muted">No refunded tickets.</p>
+              ) : (
+                <ul className="ticket-list">
+                  {refundedTickets.map((t) => {
+                    const transaction = transactionMap[t.transaction_id];
 
-            return (
-              <div key={t.id} className="org-event-card">
-                <div className="org-event-header">
-                  <h3>{t.ticket_type}</h3>
-                  <p className="org-location">€{t.ticket_price}</p>
-                </div>
-
-                <div className="org-event-details">
-                  <p><span className="label">Buyer:</span> {t.buyer_name}</p>
-
-                  {transaction && (
-                    <>
-                      <p><span className="label">Transaction:</span> #{transaction.id}</p>
-                      <p><span className="label">Paid:</span> €{transaction.total_price}</p>
-                      <p><span className="label">Payment Method:</span> {transaction.payment_method}</p>
-                      <p><span className="label">Paid At:</span> {new Date(transaction.created_at).toLocaleString("sl-SI")}</p>
-                      <p><span className="label">Reference:</span> {transaction.reference_code || "–"}</p>
-                    </>
-                  )}
-                </div>
-
-                <div className="org-event-actions">
-                  <button
-                    type="button"
-                    className="org-btn small danger"
-                    onClick={() => refundTicket(t.id)}
-                  >
-                    Refund
-                  </button>
-                </div>
-              </div>
-            );
-          })
-        )}
-
-        {/* REFUNDED TICKETS */}
-        <h2 className="organizer-title" style={{ marginTop: "2rem" }}>
-          Refunded Tickets
-        </h2>
-
-        {refundedTickets.length === 0 ? (
-          <p className="org-muted">No refunded tickets.</p>
-        ) : (
-          refundedTickets.map((t) => {
-            const transaction = transactionMap[t.transaction_id];
-
-            return (
-              <div key={t.id} className="org-event-card">
-                <div className="org-event-header">
-                  <h3>{t.ticket_type}</h3>
-                  <p className="org-location">€{t.ticket_price}</p>
-                </div>
-
-                <div className="org-event-details">
-                  <p><span className="label">Buyer:</span> {t.buyer_name}</p>
-                  <p>
-                    <span className="label">Status:</span>
-                    <span style={{ color: "#f87171" }}> Refunded</span>
-                  </p>
-
-                  {transaction && (
-                    <>
-                      <p><span className="label">Transaction:</span> #{transaction.id}</p>
-                      <p><span className="label">Paid:</span> €{transaction.total_price}</p>
-                      <p><span className="label">Payment Method:</span> {transaction.payment_method}</p>
-                      <p><span className="label">Paid At:</span> {new Date(transaction.created_at).toLocaleString("sl-SI")}</p>
-                      <p><span className="label">Reference:</span> {transaction.reference_code || "–"}</p>
-                    </>
-                  )}
-                </div>
-              </div>
-            );
-          })
+                    return (
+                      <li key={t.id} className="ticket-item" style={{ opacity: 0.7 }}>
+                        <div className="ticket-info">
+                          <strong>{t.ticket_type}</strong> – €{t.ticket_price}
+                          <div className="ticket-meta">
+                            <div><strong>Ticket ID:</strong> {t.id}</div>
+                            <div><strong>Status:</strong> <span style={{ color: 'var(--color-error)' }}>refunded</span></div>
+                            <div><strong>Buyer:</strong> {t.buyer_name} (User ID: {t.user_id})</div>
+                            <div><strong>Issued At:</strong> {new Date(t.issued_at).toLocaleString()}</div>
+                            {transaction && (
+                              <>
+                                <div style={{ marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid var(--color-border)' }}>
+                                  <strong>Transaction Details:</strong>
+                                </div>
+                                <div><strong>Transaction ID:</strong> #{transaction.id}</div>
+                                <div><strong>Total Price:</strong> €{transaction.total_price}</div>
+                                <div><strong>Payment Method:</strong> {transaction.payment_method}</div>
+                                <div><strong>Transaction Status:</strong> {transaction.status}</div>
+                                <div><strong>Reference Code:</strong> {transaction.reference_code || 'N/A'}</div>
+                                <div><strong>Created At:</strong> {new Date(transaction.created_at).toLocaleString()}</div>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+          </>
         )}
       </div>
     </OrganizerLayout>
