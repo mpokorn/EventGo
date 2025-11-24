@@ -5,6 +5,41 @@
   max-width: 900px;
 }
 
+/* Organizer utility classes - use same back button styling as profile */
+.org-back-btn {
+  align-self: flex-start;
+  margin-bottom: var(--space-md);
+  padding: 0.5rem 1rem;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: var(--radius-lg);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  font-size: 0.9rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-decoration: none;
+  transition: all 0.3s ease;
+}
+
+.org-back-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  transform: translateX(-4px);
+}
+
+.org-event-card-spaced {
+  margin-bottom: 1.5rem;
+}
+
+.org-scrollable-table {
+  overflow-x: auto;
+}
+
+.org-section-heading {
+  margin-bottom: var(--space-md);
+}
+
 
 /* Section title */
 .org-section-title {

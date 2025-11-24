@@ -26,13 +26,19 @@ export default function EventDetail() {
 
   // Load event data
   useEffect(() => {
+    setLoading(true);
     api
       .get(`/events/${id}`)
       .then((res) => {
-
         setEvent(res.data);
+        setLoading(false);
       })
-      .catch((err) => console.error("API error:", err));
+      .catch((err) => {
+        console.error("API error:", err);
+        setMessage(err.response?.data?.message || "Failed to load event");
+        setMessageType("error");
+        setLoading(false);
+      });
   }, [id]);
 
   // Purchase tickets
@@ -140,50 +146,28 @@ export default function EventDetail() {
     });
   }
 
-  if (!event) return <p style={{ color: "white" }}>Loading...</p>;
+  if (loading) return <div className="loading-message">Loading event...</div>;
+  if (message && messageType === "error" && !event) {
+    return (
+      <div className="event-detail-page">
+        <div className="event-detail-message error">{message}</div>
+      </div>
+    );
+  }
+  if (!event) return <div className="loading-message">Event not found</div>;
 
   // Check if ALL ticket types are sold out
   const allTicketTypesSoldOut = event.ticket_types?.length > 0 
-    ? event.ticket_types.every(t => {
-        const soldOut = t.tickets_sold >= t.total_tickets;
-        //console.log(`🔍 Checking ${t.type}: ${t.tickets_sold}/${t.total_tickets} = ${soldOut ? 'SOLD OUT' : 'AVAILABLE'}`);
-        return soldOut;
-      })
+    ? event.ticket_types.every(t => t.tickets_sold >= t.total_tickets)
     : event.tickets_sold >= event.total_tickets;
   
-  //console.log('🎪 Is event sold out?', allTicketTypesSoldOut);
   const isSoldOut = allTicketTypesSoldOut;
 
   return (
     <div className="event-detail-page">
 
       {/* BACK BUTTON */}
-      <button 
-        className="back-button"
-        onClick={() => navigate(-1)}
-        style={{
-          marginBottom: '1rem',
-          padding: '0.5rem 1rem',
-          background: 'rgba(255, 255, 255, 0.1)',
-          border: '1px solid rgba(255, 255, 255, 0.2)',
-          borderRadius: '8px',
-          color: '#fff',
-          cursor: 'pointer',
-          fontSize: '0.9rem',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.5rem',
-          transition: 'all 0.3s ease'
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
-          e.currentTarget.style.transform = 'translateX(-4px)';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
-          e.currentTarget.style.transform = 'translateX(0)';
-        }}
-      >
+      <button className="back-btn" onClick={() => navigate(-1)}>
         ← Back
       </button>
 
@@ -237,8 +221,17 @@ export default function EventDetail() {
               <input
                 type="number"
                 min="1"
+                step="1"
+                max="10"
                 value={quantity}
-                onChange={(e) => setQuantity(e.target.value)}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value);
+                  if (!isNaN(val) && val > 0 && val <= 10) {
+                    setQuantity(val);
+                  } else if (e.target.value === "") {
+                    setQuantity(1);
+                  }
+                }}
                 className="event-detail-input event-detail-input-small"
               />
 

@@ -7,6 +7,14 @@
   background: linear-gradient(180deg, var(--color-bg-primary) 0%, var(--color-bg-secondary) 100%);
 }
 
+/* LOADING MESSAGE */
+.loading-message {
+  color: var(--color-text-primary);
+  text-align: center;
+  padding: var(--space-xl);
+  font-size: 1.1rem;
+}
+
 /* HEADER */
 .event-detail-header {
   text-align: center;

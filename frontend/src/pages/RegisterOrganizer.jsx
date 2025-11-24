@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { validateEmail, validatePassword, validateInput } from "../utils/validation";
 import '../styles/auth.css';
 
 export default function RegisterOrganizer() {
@@ -28,24 +29,48 @@ export default function RegisterOrganizer() {
     e.preventDefault();
     setError("");
 
+    // Validate first name
+    const firstNameValidation = validateInput(formData.firstName, 50);
+    if (!firstNameValidation.valid) {
+      setError(firstNameValidation.error);
+      return;
+    }
+
+    // Validate last name
+    const lastNameValidation = validateInput(formData.lastName, 50);
+    if (!lastNameValidation.valid) {
+      setError(lastNameValidation.error);
+      return;
+    }
+
+    // Validate email
+    const emailValidation = validateEmail(formData.email);
+    if (!emailValidation.valid) {
+      setError(emailValidation.error);
+      return;
+    }
+
+    // Validate password
+    const passwordValidation = validatePassword(formData.password);
+    if (!passwordValidation.valid) {
+      setError(passwordValidation.error);
+      return;
+    }
+
+    // Check password match
     if (formData.password !== formData.confirmPassword) {
       setError("Passwords do not match.");
       return;
     }
 
-    if (formData.password.length < 8) {
-      setError("Password must be at least 8 characters long.");
-      return;
-    }
-
     setIsLoading(true);
     try {
-      const { confirmPassword, firstName, lastName, ...rest } = formData;
       const registrationData = {
-        first_name: firstName,
-        last_name: lastName,
-        role: 'organizer',
-        ...rest
+        first_name: firstNameValidation.value,
+        last_name: lastNameValidation.value,
+        email: formData.email.trim(),
+        password: formData.password,
+        role: 'organizer'
       };
 
       await register(registrationData);

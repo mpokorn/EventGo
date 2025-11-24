@@ -7,6 +7,11 @@
   background: linear-gradient(180deg, var(--color-bg-primary) 0%, var(--color-bg-secondary) 100%);
   color: var(--color-text-secondary);
 }
+
+/* Event card clickable state */
+.event-card-clickable {
+  cursor: pointer;
+}
 .events-header {
   text-align: center;
   margin-bottom: var(--space-xl);

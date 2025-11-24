@@ -93,9 +93,9 @@ export default function ProfileTransactions({ transactions, tickets, loading }) 
               </div>
 
               {isRefunded && (
-                <div className="transaction-detail-row" style={{ marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid var(--color-border)' }}>
-                  <span className="detail-label" style={{ color: 'var(--color-success)' }}>Status:</span>
-                  <span className="detail-value" style={{ color: 'var(--color-success)' }}>
+                <div className="transaction-detail-row transaction-status-indicator">
+                  <span className="detail-label transaction-status-success">Status:</span>
+                  <span className="detail-value transaction-status-success">
                     ✓ Tickets refunded - purchased by someone on the waitlist
                   </span>
                 </div>

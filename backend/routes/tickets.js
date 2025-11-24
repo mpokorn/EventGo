@@ -2,11 +2,14 @@ import express from "express";
 import pool from "../db.js";
 import { requireAuth } from "../middleware/auth.js";
 import { assignTicketToWaitlist } from "./waitlist.js";
+import { validateId, validateIds, validateNumber, sanitizeBody } from "../middleware/validation.js";
+import { userExists, eventExists, ticketTypeExists } from "../utils/dbHelpers.js";
 
 const router = express.Router();
 
 // Protect all ticket routes
 router.use(requireAuth);
+router.use(sanitizeBody);
 
 /* --------------------------------------
     GET all tickets (with full details)
@@ -57,11 +60,8 @@ router.get("/", async (req, res, next) => {
 /* --------------------------------------
     GET single ticket by ID
 -------------------------------------- */
-router.get("/:id", async (req, res, next) => {
-  const id = parseInt(req.params.id);
-  if (isNaN(id)) {
-    return res.status(400).json({ message: "ID must be a number." });
-  }
+router.get("/:id", validateId('id'), async (req, res, next) => {
+  const id = req.params.id; // Already validated
 
   try {
     const result = await pool.query(
@@ -105,19 +105,18 @@ router.get("/:id", async (req, res, next) => {
     GET all tickets for a specific user
    (as buyer or current owner)
 -------------------------------------- */
-router.get("/user/:user_id", async (req, res, next) => {
-  const user_id = parseInt(req.params.user_id);
-
-  if (isNaN(user_id)) {
-    return res.status(400).json({ message: "User ID must be a number." });
-  }
+router.get("/user/:user_id", validateId('user_id'), async (req, res, next) => {
+  const user_id = req.params.user_id; // Already validated
 
   try {
-    // Check if user exists
-    const userCheck = await pool.query(`SELECT id, first_name, last_name FROM users WHERE id = $1;`, [user_id]);
-    if (userCheck.rowCount === 0) {
+    // Use helper to check if user exists
+    const exists = await userExists(user_id);
+    if (!exists) {
       return res.status(404).json({ message: "User does not exist!" });
     }
+
+    // Get user info for response
+    const userCheck = await pool.query(`SELECT id, first_name, last_name FROM users WHERE id = $1;`, [user_id]);
 
     // Fetch all tickets where the user is the buyer or owner
     const result = await pool.query(
@@ -174,13 +173,9 @@ router.get("/user/:user_id", async (req, res, next) => {
 /* --------------------------------------
     GET tickets for a specific user and event
 -------------------------------------- */
-router.get("/user/:user_id/event/:event_id", async (req, res, next) => {
-  const user_id = parseInt(req.params.user_id);
-  const event_id = parseInt(req.params.event_id);
-
-  if (isNaN(user_id) || isNaN(event_id)) {
-    return res.status(400).json({ message: "User ID and Event ID must be numbers." });
-  }
+router.get("/user/:user_id/event/:event_id", validateIds('user_id', 'event_id'), async (req, res, next) => {
+  const user_id = req.params.user_id; // Already validated
+  const event_id = req.params.event_id; // Already validated
 
   try {
     // Get event details
@@ -230,23 +225,21 @@ router.get("/user/:user_id/event/:event_id", async (req, res, next) => {
     GET all tickets for a specific event
    (for organizer overview)
 -------------------------------------- */
-router.get("/event/:event_id", async (req, res, next) => {
-  const event_id = parseInt(req.params.event_id);
-
-  if (isNaN(event_id)) {
-    return res.status(400).json({ message: "Event ID must be a number." });
-  }
+router.get("/event/:event_id", validateId('event_id'), async (req, res, next) => {
+  const event_id = req.params.event_id; // Already validated
 
   try {
-    // Check if event exists
+    // Use helper to check if event exists
+    const exists = await eventExists(event_id);
+    if (!exists) {
+      return res.status(404).json({ message: "Event does not exist!" });
+    }
+
+    // Get event info for response
     const eventCheck = await pool.query(
       `SELECT id, title FROM events WHERE id = $1;`,
       [event_id]
     );
-
-    if (eventCheck.rowCount === 0) {
-      return res.status(404).json({ message: "Event does not exist!" });
-    }
 
     // Get all tickets for this event
     const result = await pool.query(
@@ -304,30 +297,54 @@ router.post("/", async (req, res, next) => {
   const { event_id, ticket_type_id, quantity = 1, payment_method } = req.body;
   const user_id = req.user.id; // Get user ID from authenticated token
 
-  if (!event_id || !ticket_type_id || !quantity) {
-    return res.status(400).json({ message: "Missing required data for ticket purchase!" });
+  // Validate event_id
+  const eventIdValidation = validateNumber(event_id, 'Event ID', 1, 2147483647);
+  if (!eventIdValidation.valid) {
+    return res.status(400).json({ message: eventIdValidation.message });
   }
 
+  // Validate ticket_type_id
+  const ticketTypeIdValidation = validateNumber(ticket_type_id, 'Ticket type ID', 1, 2147483647);
+  if (!ticketTypeIdValidation.valid) {
+    return res.status(400).json({ message: ticketTypeIdValidation.message });
+  }
+
+  // Validate quantity
+  const quantityValidation = validateNumber(quantity, 'Quantity', 1, 10);
+  if (!quantityValidation.valid) {
+    return res.status(400).json({ message: quantityValidation.message });
+  }
+
+  // Use a transaction to ensure atomicity
+  const client = await pool.connect();
+  
   try {
-    // Validate user, event, and ticket type
-    const [userCheck, eventCheck, typeCheck] = await Promise.all([
-      pool.query(`SELECT id FROM users WHERE id = $1`, [user_id]),
-      pool.query(`SELECT id FROM events WHERE id = $1`, [event_id]),
-      pool.query(`SELECT total_tickets, tickets_sold, price FROM ticket_types WHERE id = $1`, [
-        ticket_type_id,
-      ]),
+    await client.query('BEGIN');
+    
+    // Use helpers to validate existence
+    const [userCheckExists, eventCheckExists, typeCheck] = await Promise.all([
+      userExists(user_id),
+      eventExists(event_id),
+      client.query(`SELECT total_tickets, tickets_sold, price FROM ticket_types WHERE id = $1`, [ticket_type_id]),
     ]);
 
-    if (userCheck.rowCount === 0)
+    if (!userCheckExists) {
+      await client.query('ROLLBACK');
       return res.status(404).json({ message: "User does not exist!" });
-    if (eventCheck.rowCount === 0)
+    }
+    if (!eventCheckExists) {
+      await client.query('ROLLBACK');
       return res.status(404).json({ message: "Event does not exist!" });
-    if (typeCheck.rowCount === 0)
+    }
+    if (typeCheck.rowCount === 0) {
+      await client.query('ROLLBACK');
       return res.status(404).json({ message: "Ticket type does not exist!" });
+    }
 
     const { total_tickets, tickets_sold, price } = typeCheck.rows[0];
     const available = total_tickets - tickets_sold;
     if (available < quantity) {
+      await client.query('ROLLBACK');
       return res.status(400).json({
         message: `Only ${available} tickets available for this type!`,
       });
@@ -335,7 +352,7 @@ router.post("/", async (req, res, next) => {
 
     // 🧾 Create transaction
     const total_price = Number(price) * quantity;
-    const txResult = await pool.query(
+    const txResult = await client.query(
       `INSERT INTO transactions (user_id, total_price, status, payment_method)
        VALUES ($1, $2, 'completed', $3)
        RETURNING id;`,
@@ -347,7 +364,7 @@ router.post("/", async (req, res, next) => {
     const insertPromises = [];
     for (let i = 0; i < quantity; i++) {
       insertPromises.push(
-        pool.query(
+        client.query(
           `INSERT INTO tickets (transaction_id, ticket_type_id, event_id, user_id, status)
            VALUES ($1, $2, $3, $4, 'active');`,
           [transaction_id, ticket_type_id, event_id, user_id]
@@ -357,13 +374,13 @@ router.post("/", async (req, res, next) => {
     await Promise.all(insertPromises);
 
     // Update counts
-    await pool.query(
+    await client.query(
       `UPDATE ticket_types SET tickets_sold = tickets_sold + $1 WHERE id = $2;`,
       [quantity, ticket_type_id]
     );
     
     // Update event's tickets_sold AND total_tickets based on ticket types
-    await pool.query(
+    await client.query(
       `UPDATE events
        SET tickets_sold = (
          SELECT COALESCE(SUM(tickets_sold), 0)
@@ -379,6 +396,8 @@ router.post("/", async (req, res, next) => {
       [event_id]
     );
 
+    await client.query('COMMIT');
+
     res.status(201).json({
       message: `Successfully purchased ${quantity} ticket(s)!`,
       transaction_id,
@@ -387,17 +406,19 @@ router.post("/", async (req, res, next) => {
       payment_method: payment_method || "card",
     });
   } catch (err) {
-    console.error(" Error in POST /tickets:", err);
+    await client.query('ROLLBACK');
+    console.error("❌ Error in POST /tickets:", err);
     next(err);
+  } finally {
+    client.release();
   }
 });
 
 /* --------------------------------------
     Refund ticket - Always goes to waitlist system
 -------------------------------------- */
-router.put("/:id/refund", async (req, res, next) => {
-  const id = parseInt(req.params.id);
-  if (isNaN(id)) return res.status(400).json({ message: "ID must be a number." });
+router.put("/:id/refund", validateId('id'), async (req, res, next) => {
+  const id = req.params.id; // Already validated
 
   try {
     // Get ticket details and check event status
@@ -462,13 +483,16 @@ router.put("/:id/refund", async (req, res, next) => {
 /* --------------------------------------
     Resell/Transfer ticket to another user
 -------------------------------------- */
-router.put("/:id/resell", async (req, res, next) => {
-  const id = parseInt(req.params.id);
+router.put("/:id/resell", validateId('id'), async (req, res, next) => {
+  const id = req.params.id; // Already validated
   const { new_owner_id } = req.body;
   const current_user_id = req.user.id;
 
-  if (isNaN(id)) return res.status(400).json({ message: "ID must be a number." });
-  if (!new_owner_id) return res.status(400).json({ message: "Missing new owner ID!" });
+  // Validate new_owner_id
+  const ownerIdValidation = validateNumber(new_owner_id, 'New owner ID', 1, 2147483647);
+  if (!ownerIdValidation.valid) {
+    return res.status(400).json({ message: ownerIdValidation.message });
+  }
 
   try {
     // Check if ticket exists and belongs to current user
@@ -511,9 +535,8 @@ router.put("/:id/resell", async (req, res, next) => {
 /* --------------------------------------
    Delete ticket
 -------------------------------------- */
-router.delete("/:id", async (req, res, next) => {
-  const id = parseInt(req.params.id);
-  if (isNaN(id)) return res.status(400).json({ message: "ID must be a number." });
+router.delete("/:id", validateId('id'), async (req, res, next) => {
+  const id = req.params.id; // Already validated
 
   try {
     const result = await pool.query(`DELETE FROM tickets WHERE id = $1 RETURNING *;`, [id]);

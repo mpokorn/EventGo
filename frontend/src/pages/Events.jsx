@@ -51,32 +51,7 @@ export default function Events() {
     <div className="events-page">
       {/* Show back button if there's a search query or other filters */}
       {searchQuery && (
-        <button 
-          className="back-button"
-          onClick={() => navigate(-1)}
-          style={{
-            marginBottom: '1rem',
-            padding: '0.5rem 1rem',
-            background: 'rgba(255, 255, 255, 0.1)',
-            border: '1px solid rgba(255, 255, 255, 0.2)',
-            borderRadius: '8px',
-            color: '#fff',
-            cursor: 'pointer',
-            fontSize: '0.9rem',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            transition: 'all 0.3s ease'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
-            e.currentTarget.style.transform = 'translateX(-4px)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
-            e.currentTarget.style.transform = 'translateX(0)';
-          }}
-        >
+        <button className="back-btn" onClick={() => navigate(-1)}>
           ← Back
         </button>
       )}
@@ -98,10 +73,9 @@ export default function Events() {
               
               return (
                 <div 
-                  className="event-card" 
+                  className="event-card event-card-clickable" 
                   key={e.id}
                   onClick={() => navigate(`/events/${e.id}`)}
-                  style={{ cursor: 'pointer' }}
                 >
                   {isSoldOut && <div className="sold-out-badge">SOLD OUT</div>}
                   <div className="event-card-content">

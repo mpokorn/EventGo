@@ -55,58 +55,14 @@ export default function ProfileEventTickets({ eventId, onBack }) {
 
   return (
     <section className="profile-card profile-tickets">
-      <button 
-        onClick={onBack}
-        style={{
-          marginBottom: '1rem',
-          padding: '0.5rem 1rem',
-          background: 'rgba(255, 255, 255, 0.1)',
-          border: '1px solid rgba(255, 255, 255, 0.2)',
-          borderRadius: '8px',
-          color: '#fff',
-          cursor: 'pointer',
-          fontSize: '0.9rem',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.5rem',
-          transition: 'all 0.3s ease'
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
-          e.currentTarget.style.transform = 'translateX(-4px)';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
-          e.currentTarget.style.transform = 'translateX(0)';
-        }}
-      >
-        ← Back to Events
-      </button>
-
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
-        <div>
-          <h2 style={{ margin: 0, marginBottom: '0.5rem' }}>{event?.title}</h2>
-          <div style={{ fontSize: '0.9rem', color: 'var(--color-text-secondary)' }}>
-            <p style={{ margin: '0.25rem 0' }}><strong>Date:</strong> {new Date(event?.start_datetime).toLocaleString()}</p>
-            <p style={{ margin: '0.25rem 0' }}><strong>Location:</strong> {event?.location}</p>
-            <p style={{ margin: '0.25rem 0' }}><strong>Total Tickets:</strong> {tickets.length}</p>
-          </div>
+      <div className="event-tickets-header">
+        <div className="event-tickets-info">
+          <h2>{event?.title}</h2>
+          <p><strong>Date:</strong> {new Date(event?.start_datetime).toLocaleString()}</p>
+          <p><strong>Location:</strong> {event?.location}</p>
+          <p><strong>Total Tickets:</strong> {tickets.length}</p>
         </div>
-        <Link 
-          to={`/events/${eventId}`}
-          style={{
-            display: 'inline-block',
-            background: 'linear-gradient(90deg, var(--color-accent), var(--color-primary))',
-            color: 'var(--color-text-primary)',
-            padding: '0.625rem 1.25rem',
-            borderRadius: 'var(--radius-md)',
-            textDecoration: 'none',
-            fontWeight: 600,
-            fontSize: '0.9rem',
-            transition: 'all 0.2s ease',
-            whiteSpace: 'nowrap'
-          }}
-        >
+        <Link to={`/events/${eventId}`} className="event-tickets-link">
           View Event Page
         </Link>
       </div>
@@ -149,7 +105,7 @@ export default function ProfileEventTickets({ eventId, onBack }) {
                       <div className="ticket-meta">
                         Issued: {new Date(t.issued_at).toLocaleString()}
                       </div>
-                      <div style={{ fontSize: '0.85rem', color: '#9CA3AF', marginTop: '0.5rem' }}>
+                      <div className="ticket-transaction-id">
                         Transaction: #{t.transaction_id}
                       </div>
                     </div>

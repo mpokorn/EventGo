@@ -3,8 +3,13 @@ import express from "express";
 import pool from "../db.js";
 import { hashPassword, comparePassword, generateToken, generateRefreshToken, verifyToken } from "../utils/auth.js";
 import { requireAuth } from "../middleware/auth.js";
+import { validateId, validateEmail, validatePassword, validateString, sanitizeBody } from "../middleware/validation.js";
+import { userExists, getUserById } from "../utils/dbHelpers.js";
 
 const router = express.Router();
+
+// Apply sanitization middleware to all POST/PUT routes
+router.use(sanitizeBody);
 
 /* --------------------------------------
     User Registration (normal + organizer)
@@ -12,17 +17,35 @@ const router = express.Router();
 router.post("/register", async (req, res, next) => {
   const { first_name, last_name, email, password, role } = req.body;
 
-  if (!first_name || !last_name || !email || !password) {
-    return res.status(400).json({
-      message: "Vsa polja so obvezna!"
-    });
+  // Validate first name
+  const firstNameValidation = validateString(first_name, 'First name', 1, 50);
+  if (!firstNameValidation.valid) {
+    return res.status(400).json({ message: firstNameValidation.message });
+  }
+
+  // Validate last name
+  const lastNameValidation = validateString(last_name, 'Last name', 1, 50);
+  if (!lastNameValidation.valid) {
+    return res.status(400).json({ message: lastNameValidation.message });
+  }
+
+  // Validate email
+  const emailValidation = validateEmail(email);
+  if (!emailValidation.valid) {
+    return res.status(400).json({ message: emailValidation.message });
+  }
+
+  // Validate password
+  const passwordValidation = validatePassword(password);
+  if (!passwordValidation.valid) {
+    return res.status(400).json({ message: passwordValidation.message });
   }
 
   try {
     // Check if user already exists
     const existing = await pool.query(
       "SELECT id FROM users WHERE email = $1",
-      [email]
+      [emailValidation.value || email]
     );
 
     if (existing.rows.length > 0) {
@@ -41,14 +64,20 @@ router.post("/register", async (req, res, next) => {
 
     const hashedPassword = await hashPassword(password);
 
-    // Insert user
+    // Insert user with sanitized data
     const result = await pool.query(
       `
       INSERT INTO users (first_name, last_name, email, password, role)
       VALUES ($1, $2, $3, $4, COALESCE($5, 'user')::user_role)
       RETURNING id, first_name, last_name, email, role;
       `,
-      [first_name, last_name, email, hashedPassword, role]
+      [
+        firstNameValidation.value,
+        lastNameValidation.value,
+        emailValidation.value || email,
+        hashedPassword,
+        role
+      ]
     );
 
     const token = generateToken(result.rows[0]);
@@ -126,16 +155,31 @@ router.post("/login", async (req, res, next) => {
 router.post("/organizer-register", async (req, res, next) => {
   const { first_name, last_name, email, password } = req.body;
 
-  if (!first_name || !last_name || !email || !password) {
-    return res.status(400).json({
-      message: "All fields are required!"
-    });
+  // Validate all fields
+  const firstNameValidation = validateString(first_name, 'First name', 1, 50);
+  if (!firstNameValidation.valid) {
+    return res.status(400).json({ message: firstNameValidation.message });
+  }
+
+  const lastNameValidation = validateString(last_name, 'Last name', 1, 50);
+  if (!lastNameValidation.valid) {
+    return res.status(400).json({ message: lastNameValidation.message });
+  }
+
+  const emailValidation = validateEmail(email);
+  if (!emailValidation.valid) {
+    return res.status(400).json({ message: emailValidation.message });
+  }
+
+  const passwordValidation = validatePassword(password);
+  if (!passwordValidation.valid) {
+    return res.status(400).json({ message: passwordValidation.message });
   }
 
   try {
     const existing = await pool.query(
       "SELECT id FROM users WHERE email = $1",
-      [email]
+      [emailValidation.value || email]
     );
 
     if (existing.rows.length > 0) {
@@ -152,7 +196,12 @@ router.post("/organizer-register", async (req, res, next) => {
       VALUES ($1, $2, $3, $4, 'organizer'::user_role)
       RETURNING id, first_name, last_name, email, role;
       `,
-      [first_name, last_name, email, hashedPassword]
+      [
+        firstNameValidation.value,
+        lastNameValidation.value,
+        emailValidation.value || email,
+        hashedPassword
+      ]
     );
 
     const token = generateToken(result.rows[0]);
@@ -254,12 +303,8 @@ router.get("/", requireAuth, async (req, res, next) => {
 /* --------------------------------------
     Get user by ID (PROTECTED - Own profile only)
 -------------------------------------- */
-router.get("/:id", requireAuth, async (req, res, next) => {
-  const id = parseInt(req.params.id);
-
-  if (isNaN(id)) {
-    return res.status(400).json({ message: "ID must be a number." });
-  }
+router.get("/:id", requireAuth, validateId('id'), async (req, res, next) => {
+  const id = req.params.id; // Already validated and converted to number
 
   // Verify user is accessing their own profile
   if (req.user.id !== id) {
@@ -307,10 +352,25 @@ router.get("/:id", requireAuth, async (req, res, next) => {
 router.post("/", requireAuth, async (req, res, next) => {
   const { first_name, last_name, email, password, role } = req.body;
 
-  if (!first_name || !last_name || !email || !password) {
-    return res.status(400).json({
-      message: "Missing required data!"
-    });
+  // Validate all fields
+  const firstNameValidation = validateString(first_name, 'First name', 1, 50);
+  if (!firstNameValidation.valid) {
+    return res.status(400).json({ message: firstNameValidation.message });
+  }
+
+  const lastNameValidation = validateString(last_name, 'Last name', 1, 50);
+  if (!lastNameValidation.valid) {
+    return res.status(400).json({ message: lastNameValidation.message });
+  }
+
+  const emailValidation = validateEmail(email);
+  if (!emailValidation.valid) {
+    return res.status(400).json({ message: emailValidation.message });
+  }
+
+  const passwordValidation = validatePassword(password);
+  if (!passwordValidation.valid) {
+    return res.status(400).json({ message: passwordValidation.message });
   }
 
   const validRoles = ["user", "organizer", "admin"];
@@ -323,7 +383,7 @@ router.post("/", requireAuth, async (req, res, next) => {
   try {
     const check = await pool.query(
       "SELECT id FROM users WHERE email = $1",
-      [email]
+      [emailValidation.value || email]
     );
 
     if (check.rows.length > 0) {
@@ -340,7 +400,13 @@ router.post("/", requireAuth, async (req, res, next) => {
       VALUES ($1, $2, $3, $4, COALESCE($5,'user')::user_role)
       RETURNING id, first_name, last_name, email, role, created_at;
       `,
-      [first_name, last_name, email, hashedPassword, role]
+      [
+        firstNameValidation.value,
+        lastNameValidation.value,
+        emailValidation.value || email,
+        hashedPassword,
+        role
+      ]
     );
 
     res.status(201).json({
@@ -407,12 +473,8 @@ router.post("/refresh-token", async (req, res, next) => {
 /* --------------------------------------
     Delete user (PROTECTED - Own account only)
 -------------------------------------- */
-router.delete("/:id", requireAuth, async (req, res, next) => {
-  const id = parseInt(req.params.id);
-
-  if (isNaN(id)) {
-    return res.status(400).json({ message: "ID must be a number." });
-  }
+router.delete("/:id", requireAuth, validateId('id'), async (req, res, next) => {
+  const id = req.params.id; // Already validated
 
   // Verify user is deleting their own account
   if (req.user.id !== id) {

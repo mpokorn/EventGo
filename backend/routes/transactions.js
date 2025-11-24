@@ -1,11 +1,14 @@
 import express from "express";
 import pool from "../db.js";
 import { requireAuth } from "../middleware/auth.js";
+import { validateId, sanitizeBody } from "../middleware/validation.js";
+import { userExists } from "../utils/dbHelpers.js";
 
 const router = express.Router();
 
 // Protect all transaction routes
 router.use(requireAuth);
+router.use(sanitizeBody);
 
 /* --------------------------------------
     Get all transactions (with buyer + summary)
@@ -40,16 +43,19 @@ router.get("/", async (req, res, next) => {
 /* --------------------------------------
     Get all transactions for a specific user
 -------------------------------------- */
-router.get("/user/:id", async (req, res, next) => {
-  const userId = parseInt(req.params.id);
-
-  // Basic input validation
-  if (isNaN(userId)) {
-    return res.status(400).json({ message: "ID must be a number." });
-  }
+router.get("/user/:id", validateId('id'), async (req, res, next) => {
+  const userId = req.params.id; // Already validated
 
   try {
-    // Check if user exists
+    // Use helper to check if user exists
+    const exists = await userExists(userId);
+    if (!exists) {
+      return res.status(404).json({
+        message: `User with ID ${userId} does not exist.`,
+      });
+    }
+
+    // Get user info for response
     const userCheck = await pool.query(
       `SELECT id, first_name, last_name FROM users WHERE id = $1;`,
       [userId]
@@ -112,12 +118,8 @@ router.get("/user/:id", async (req, res, next) => {
 /* --------------------------------------
     Get one transaction with ticket details
 -------------------------------------- */
-router.get("/:id", async (req, res, next) => {
-  const id = parseInt(req.params.id);
-
-  if (isNaN(id)) {
-    return res.status(400).json({ message: "ID must be a number." });
-  }
+router.get("/:id", validateId('id'), async (req, res, next) => {
+  const id = req.params.id; // Already validated
 
   try {
     const transactionResult = await pool.query(
@@ -203,12 +205,8 @@ router.post("/", async (req, res, next) => {
 /* --------------------------------------
     Delete a transaction
 -------------------------------------- */
-router.delete("/:id", async (req, res, next) => {
-  const id = parseInt(req.params.id);
-
-  if (isNaN(id)) {
-    return res.status(400).json({ message: "ID must be a number." });
-  }
+router.delete("/:id", validateId('id'), async (req, res, next) => {
+  const id = req.params.id; // Already validated
 
   try {
     const result = await pool.query(

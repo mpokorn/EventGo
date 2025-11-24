@@ -98,7 +98,7 @@ export default function OrganizerEventTickets() {
   return (
     <OrganizerLayout title="Tickets Sold">
       <div className="org-events-container">
-        <Link to="/organizer/events" className="org-btn ghost back">
+        <Link to="/organizer/events" className="org-back-btn">
           ← Back to Events
         </Link>
 
@@ -245,12 +245,9 @@ export default function OrganizerEventTickets() {
                       <li key={t.id} className="ticket-item pending">
                         <div className="ticket-info">
                           <strong>{t.ticket_type}</strong> – €{t.ticket_price}
-                          <div className="org-badge pending">
-                            PENDING RETURN
-                          </div>
                           <div className="ticket-meta">
                             <div><strong>Ticket ID:</strong> {t.id}</div>
-                            <div><strong>Status:</strong> <span className="status-pending">pending return</span></div>
+                            <div><strong>Status:</strong> <span className="status-pending">Pending return</span></div>
                             <div><strong>Original Buyer:</strong> {t.buyer_name} (User ID: {t.user_id})</div>
                             <div><strong>Issued At:</strong> {new Date(t.issued_at).toLocaleString()}</div>
                             {transaction && (

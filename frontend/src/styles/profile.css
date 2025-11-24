@@ -546,17 +546,19 @@
    BACK BUTTON (Reusable)
 ======================================== */
 .back-btn {
+  align-self: flex-start;
   margin-bottom: var(--space-md);
   padding: 0.5rem 1rem;
   background: rgba(255, 255, 255, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.2);
-  borderRadius: var(--radius-md);
+  border-radius: var(--radius-lg);
   color: var(--color-text-primary);
   cursor: pointer;
   font-size: 0.9rem;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 0.5rem;
+  text-decoration: none;
   transition: all 0.3s ease;
 }
 
@@ -564,7 +566,6 @@
   background: rgba(255, 255, 255, 0.15);
   transform: translateX(-4px);
 }
-
 /* ========================================
    TICKET HEADER & INFO SECTIONS
 ======================================== */

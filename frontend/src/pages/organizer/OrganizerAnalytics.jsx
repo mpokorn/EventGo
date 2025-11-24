@@ -39,7 +39,7 @@ export default function OrganizerAnalytics() {
     return (
       <OrganizerLayout title="Analytics">
         <div className="org-events-container">
-          <Link to="/organizer/events" className="org-btn ghost" style={{ alignSelf: 'flex-start', marginBottom: '1rem' }}>
+          <Link to="/organizer/events" className="org-back-btn">
             ← Back to Events
           </Link>
           
@@ -73,7 +73,7 @@ export default function OrganizerAnalytics() {
   return (
     <OrganizerLayout title="Event Analytics">
       <div className="org-events-container">
-        <Link to="/organizer/events" className="org-btn ghost" style={{ alignSelf: 'flex-start', marginBottom: '1rem' }}>
+        <Link to="/organizer/events" className="org-back-btn">
           ← Back to Events
         </Link>
 

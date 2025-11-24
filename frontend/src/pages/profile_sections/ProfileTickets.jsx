@@ -12,21 +12,12 @@ export default function ProfileTickets({ reservedTickets, activeTickets, pending
 
   return (
     <section className="profile-card profile-tickets">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
-        <h2 style={{ margin: 0 }}>Your Tickets</h2>
+      <div className="tickets-header">
+        <h2>Your Tickets</h2>
         {hasEligibleTickets && !loading && (
-          <div style={{
-            background: 'rgba(255, 152, 0, 0.1)',
-            border: '1px solid rgba(255, 152, 0, 0.3)',
-            borderRadius: '8px',
-            padding: '0.75rem 1rem',
-            fontSize: '0.9rem',
-            color: '#FF9800',
-            maxWidth: '300px',
-            textAlign: 'right'
-          }}>
+          <div className="tickets-notice">
             <strong>Can't attend the event?</strong>
-            <div style={{ fontSize: '0.85rem', marginTop: '0.25rem', color: '#cbd5e1' }}>
+            <div className="tickets-notice-hint">
               You can return eligible tickets below for sold-out events
             </div>
           </div>
@@ -89,10 +80,10 @@ export default function ProfileTickets({ reservedTickets, activeTickets, pending
                     <strong>{t.event_name}</strong> – {t.ticket_type} ({t.ticket_price} €)
                     <div className="ticket-meta">
                       Event: {new Date(t.start_datetime).toLocaleString()}
-                      {soldOut && <span style={{ color: '#FF9800', marginLeft: '0.5rem' }}>● Sold Out</span>}
+                      {soldOut && <span className="sold-out-indicator">● Sold Out</span>}
                     </div>
                     {!soldOut && (
-                      <div style={{ fontSize: '0.85rem', color: '#9CA3AF', marginTop: '0.25rem' }}>
+                      <div className="ticket-return-hint">
                         Tickets can only be returned for sold out events
                       </div>
                     )}

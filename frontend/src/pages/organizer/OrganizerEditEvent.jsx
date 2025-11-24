@@ -172,7 +172,7 @@ export default function OrganizerEditEvent() {
 
   return (
     <OrganizerLayout title="Edit Event">
-      <Link to="/organizer/events" className="org-btn ghost" style={{ alignSelf: 'flex-start', marginBottom: '1rem' }}>
+      <Link to="/organizer/events" className="org-back-btn">
         ← Back to Events
       </Link>
 

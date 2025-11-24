@@ -342,31 +342,37 @@ router.delete("/event/:event_id/user/:user_id", async (req, res, next) => {
   Creates a PENDING transaction that user must accept
 -------------------------------------- */
 export async function assignTicketToWaitlist(event_id, ticket_type_id) {
+  const client = await pool.connect();
+  
   try {
-    // Find first person in waitlist
-    const waitlistResult = await pool.query(
+    await client.query('BEGIN');
+    
+    // Find first person in waitlist with row-level locking to prevent race conditions
+    const waitlistResult = await client.query(
       `SELECT * FROM waitlist 
        WHERE event_id = $1 
        ORDER BY joined_at ASC 
-       LIMIT 1;`,
+       LIMIT 1
+       FOR UPDATE SKIP LOCKED;`,
       [event_id]
     );
 
     if (waitlistResult.rows.length === 0) {
+      await client.query('ROLLBACK');
       return { assigned: false };
     }
 
     const waitlistUser = waitlistResult.rows[0];
     
     // Get ticket type and price
-    const ticketTypeResult = await pool.query(
+    const ticketTypeResult = await client.query(
       `SELECT price FROM ticket_types WHERE id = $1;`,
       [ticket_type_id]
     );
     const price = ticketTypeResult.rows[0]?.price || 0;
 
     // Create PENDING transaction for the waitlist user (they must accept)
-    const txResult = await pool.query(
+    const txResult = await client.query(
       `INSERT INTO transactions (user_id, total_price, status, payment_method)
        VALUES ($1, $2, 'pending', 'waitlist')
        RETURNING id;`,
@@ -380,19 +386,21 @@ export async function assignTicketToWaitlist(event_id, ticket_type_id) {
     //   'refunded' - Ticket has been refunded and is no longer valid.
     //
     // Here, we create a ticket with 'reserved' status for the waitlist user. The ticket will become 'active' once the user accepts and completes payment.
-    await pool.query(
+    await client.query(
       `INSERT INTO tickets (transaction_id, ticket_type_id, event_id, user_id, status)
        VALUES ($1, $2, $3, $4, 'reserved');`,
       [transaction_id, ticket_type_id, event_id, waitlistUser.user_id]
     );
 
     // Remove from waitlist (they now have a reserved ticket)
-    await pool.query(
+    await client.query(
       `DELETE FROM waitlist WHERE id = $1;`,
       [waitlistUser.id]
     );
 
     // Don't increment tickets_sold yet - only when they accept!
+
+    await client.query('COMMIT');
 
     return { 
       assigned: true, 
@@ -401,8 +409,11 @@ export async function assignTicketToWaitlist(event_id, ticket_type_id) {
     };
 
   } catch (error) {
-    console.error("Error in assignTicketToWaitlist:", error);
+    await client.query('ROLLBACK');
+    console.error("❌ Error in assignTicketToWaitlist:", error);
     throw error;
+  } finally {
+    client.release();
   }
 }
 

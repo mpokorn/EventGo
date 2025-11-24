@@ -1,21 +1,20 @@
 import express from "express";
 import pool from "../db.js";
 import { requireAuth } from "../middleware/auth.js";
+import { validateId, validateString, validateNumber, sanitizeBody } from "../middleware/validation.js";
+import { eventExists, userOwnsEvent } from "../utils/dbHelpers.js";
 
 const router = express.Router();
 
 // Protect all modification routes (POST, PUT, DELETE)
 // GET routes can remain public for browsing
+router.use(sanitizeBody);
 
 /* --------------------------------------
     Get all ticket types for a specific event
 -------------------------------------- */
-router.get("/:event_id", async (req, res, next) => {
-  const { event_id } = req.params;
-
-  if (isNaN(event_id)) {
-    return res.status(400).json({ message: "Event ID must be a number." });
-  }
+router.get("/:event_id", validateId('event_id'), async (req, res, next) => {
+  const event_id = req.params.event_id; // Already validated
 
   try {
     const result = await pool.query(
@@ -54,21 +53,35 @@ router.get("/:event_id", async (req, res, next) => {
 router.post("/", requireAuth, async (req, res, next) => {
   const { event_id, type, price, total_tickets } = req.body;
 
-  if (!event_id || !type || !price || !total_tickets) {
-    return res.status(400).json({
-      message: "Missing or improperly structured ticket data!",
-    });
+  // Validate event_id
+  const eventIdValidation = validateNumber(event_id, 'Event ID', 1, 2147483647);
+  if (!eventIdValidation.valid) {
+    return res.status(400).json({ message: eventIdValidation.message });
+  }
+
+  // Validate type (ticket type name)
+  const typeValidation = validateString(type, 'Ticket type name', 2, 100);
+  if (!typeValidation.valid) {
+    return res.status(400).json({ message: typeValidation.message });
+  }
+
+  // Validate price
+  const priceValidation = validateNumber(price, 'Price', 0, 1000000);
+  if (!priceValidation.valid) {
+    return res.status(400).json({ message: priceValidation.message });
+  }
+
+  // Validate total_tickets
+  const ticketsValidation = validateNumber(total_tickets, 'Total tickets', 1, 100000);
+  if (!ticketsValidation.valid) {
+    return res.status(400).json({ message: ticketsValidation.message });
   }
 
   try {
-    // Verify that the event exists and belongs to user
-    const eventCheck = await pool.query(`SELECT id, organizer_id FROM events WHERE id = $1`, [event_id]);
-    if (eventCheck.rowCount === 0) {
-      return res.status(404).json({ message: "Event with this ID does not exist!" });
-    }
-    
-    if (eventCheck.rows[0].organizer_id !== req.user.id) {
-      return res.status(403).json({ message: "You can only create ticket types for your own events!" });
+    // Use helper to verify event ownership
+    const ownsEvent = await userOwnsEvent(req.user.id, event_id);
+    if (!ownsEvent) {
+      return res.status(403).json({ message: "Event not found or you don't have permission to create ticket types for it!" });
     }
 
     const result = await pool.query(
@@ -77,7 +90,7 @@ router.post("/", requireAuth, async (req, res, next) => {
       VALUES ($1, $2, $3, $4, 0)
       RETURNING *;
       `,
-      [event_id, type, price, total_tickets]
+      [event_id, typeValidation.value, priceValidation.value, ticketsValidation.value]
     );
 
     // Sync event's total_tickets
@@ -105,12 +118,37 @@ router.post("/", requireAuth, async (req, res, next) => {
 /* --------------------------------------
     Update existing ticket type
 -------------------------------------- */
-router.patch("/:id", async (req, res, next) => {
-  const { id } = req.params;
+router.patch("/:id", requireAuth, validateId('id'), async (req, res, next) => {
+  const id = req.params.id; // Already validated
   const { type, price, total_tickets, tickets_sold } = req.body;
 
-  if (isNaN(id)) {
-    return res.status(400).json({ message: "Ticket type ID must be a number." });
+  // Validate fields if provided
+  if (type) {
+    const typeValidation = validateString(type, 'Ticket type name', 2, 100);
+    if (!typeValidation.valid) {
+      return res.status(400).json({ message: typeValidation.message });
+    }
+  }
+
+  if (price !== undefined) {
+    const priceValidation = validateNumber(price, 'Price', 0, 1000000);
+    if (!priceValidation.valid) {
+      return res.status(400).json({ message: priceValidation.message });
+    }
+  }
+
+  if (total_tickets !== undefined) {
+    const ticketsValidation = validateNumber(total_tickets, 'Total tickets', 1, 100000);
+    if (!ticketsValidation.valid) {
+      return res.status(400).json({ message: ticketsValidation.message });
+    }
+  }
+
+  if (tickets_sold !== undefined) {
+    const soldValidation = validateNumber(tickets_sold, 'Tickets sold', 0, 100000);
+    if (!soldValidation.valid) {
+      return res.status(400).json({ message: soldValidation.message });
+    }
   }
 
   try {
@@ -163,12 +201,8 @@ router.patch("/:id", async (req, res, next) => {
 /* --------------------------------------
     Delete ticket type (PROTECTED - event owner only)
 -------------------------------------- */
-router.delete("/:id", requireAuth, async (req, res, next) => {
-  const { id } = req.params;
-
-  if (isNaN(id)) {
-    return res.status(400).json({ message: "ID must be a number." });
-  }
+router.delete("/:id", requireAuth, validateId('id'), async (req, res, next) => {
+  const id = req.params.id; // Already validated
 
   try {
     // Verify ticket type belongs to user's event

@@ -1,8 +1,13 @@
 import express from "express";
 import pool from "../db.js";
 import { requireAuth } from "../middleware/auth.js";
+import { validateId, validateString, validateNumber, validateDate, validateDateRange, sanitizeBody } from "../middleware/validation.js";
+import { eventExists, getEventById, userOwnsEvent } from "../utils/dbHelpers.js";
 
 const router = express.Router();
+
+// Apply sanitization middleware to all POST/PUT routes
+router.use(sanitizeBody);
 
 /* --------------------------------------
     GET all events with search and filtering
@@ -95,11 +100,11 @@ router.get("/", async (req, res, next) => {
 /* --------------------------------------
    GET all events for a specific organizer (PROTECTED)
 -------------------------------------- */
-router.get("/organizer/:organizerId", requireAuth, async (req, res, next) => {
-  const { organizerId } = req.params;
+router.get("/organizer/:organizerId", requireAuth, validateId('organizerId'), async (req, res, next) => {
+  const organizerId = req.params.organizerId; // Already validated
 
   // Verify user is requesting their own events
-  if (req.user.id !== parseInt(organizerId)) {
+  if (req.user.id !== organizerId) {
     return res.status(403).json({ message: "You can only view your own events!" });
   }
 
@@ -132,12 +137,8 @@ router.get("/organizer/:organizerId", requireAuth, async (req, res, next) => {
 /* --------------------------------------
     GET single event + its ticket types
 -------------------------------------- */
-router.get("/:id", async (req, res, next) => {
-  const { id } = req.params;
-
-  if (isNaN(id)) {
-    return res.status(400).json({ message: "ID mora biti število." });
-  }
+router.get("/:id", validateId('id'), async (req, res, next) => {
+  const id = req.params.id; // Already validated
 
   try {
     const eventResult = await pool.query(
@@ -192,11 +193,50 @@ router.post("/", requireAuth, async (req, res, next) => {
     return res.status(403).json({ message: "Only organizers can create events!" });
   }
 
-  // osnovna validacija
-  if (!title || !start_datetime || !end_datetime || !location || !total_tickets) {
-    return res.status(400).json({
-      message: "Manjkajo podatki za ustvarjanje dogodka ali niso pravilno strukturirani!",
-    });
+  // Validate title
+  const titleValidation = validateString(title, 'Title', 3, 200);
+  if (!titleValidation.valid) {
+    return res.status(400).json({ message: titleValidation.message });
+  }
+
+  // Validate description (optional but if provided, validate)
+  let descriptionValue = null;
+  if (description) {
+    const descValidation = validateString(description, 'Description', 1, 5000);
+    if (!descValidation.valid) {
+      return res.status(400).json({ message: descValidation.message });
+    }
+    descriptionValue = descValidation.value;
+  }
+
+  // Validate location
+  const locationValidation = validateString(location, 'Location', 3, 200);
+  if (!locationValidation.valid) {
+    return res.status(400).json({ message: locationValidation.message });
+  }
+
+  // Validate total_tickets
+  const ticketsValidation = validateNumber(total_tickets, 'Total tickets', 1, 100000);
+  if (!ticketsValidation.valid) {
+    return res.status(400).json({ message: ticketsValidation.message });
+  }
+
+  // Validate start date
+  const startDateValidation = validateDate(start_datetime, 'Start date', { allowPast: false });
+  if (!startDateValidation.valid) {
+    return res.status(400).json({ message: startDateValidation.message });
+  }
+
+  // Validate end date
+  const endDateValidation = validateDate(end_datetime, 'End date', { allowPast: false });
+  if (!endDateValidation.valid) {
+    return res.status(400).json({ message: endDateValidation.message });
+  }
+
+  // Validate date range
+  const dateRangeValidation = validateDateRange(startDateValidation.value, endDateValidation.value);
+  if (!dateRangeValidation.valid) {
+    return res.status(400).json({ message: dateRangeValidation.message });
   }
 
   try {
@@ -209,12 +249,12 @@ router.post("/", requireAuth, async (req, res, next) => {
     `;
 
     const result = await pool.query(sql, [
-      title,
-      description,
+      titleValidation.value,
+      descriptionValue,
       start_datetime,
       end_datetime,
-      location,
-      total_tickets,
+      locationValidation.value,
+      ticketsValidation.value,
       organizer_id,
     ]);
 
@@ -231,8 +271,8 @@ router.post("/", requireAuth, async (req, res, next) => {
 /* --------------------------------------
    Update existing event (PROTECTED - Own events only)
 -------------------------------------- */
-router.put("/:id", requireAuth, async (req, res, next) => {
-  const { id } = req.params;
+router.put("/:id", requireAuth, validateId('id'), async (req, res, next) => {
+  const id = req.params.id; // Already validated
   const {
     title,
     description,
@@ -243,23 +283,56 @@ router.put("/:id", requireAuth, async (req, res, next) => {
   } = req.body;
 
   try {
-    // Verify event exists and belongs to user
-    const eventCheck = await pool.query(
-      `SELECT id, organizer_id FROM events WHERE id = $1`,
-      [id]
-    );
-
-    if (eventCheck.rows.length === 0) {
-      return res.status(404).json({ message: "Dogodek ni bil najden!" });
+    // Use helper to check ownership
+    const ownsEvent = await userOwnsEvent(req.user.id, id);
+    if (!ownsEvent) {
+      return res.status(403).json({
+        message: "Event not found or you don't have permission to edit it!",
+      });
     }
 
-    const event = eventCheck.rows[0];
+    // Validate fields if provided
+    if (title) {
+      const titleValidation = validateString(title, 'Title', 3, 200);
+      if (!titleValidation.valid) {
+        return res.status(400).json({ message: titleValidation.message });
+      }
+    }
 
-    // Check ownership
-    if (event.organizer_id !== req.user.id) {
-      return res.status(403).json({
-        message: "You can only edit your own events!",
-      });
+    if (description) {
+      const descValidation = validateString(description, 'Description', 1, 5000);
+      if (!descValidation.valid) {
+        return res.status(400).json({ message: descValidation.message });
+      }
+    }
+
+    if (location) {
+      const locationValidation = validateString(location, 'Location', 3, 200);
+      if (!locationValidation.valid) {
+        return res.status(400).json({ message: locationValidation.message });
+      }
+    }
+
+    if (total_tickets) {
+      const ticketsValidation = validateNumber(total_tickets, 'Total tickets', 1, 100000);
+      if (!ticketsValidation.valid) {
+        return res.status(400).json({ message: ticketsValidation.message });
+      }
+    }
+
+    if (start_datetime && end_datetime) {
+      const startValidation = validateDate(start_datetime, 'Start date', { allowPast: false });
+      if (!startValidation.valid) {
+        return res.status(400).json({ message: startValidation.message });
+      }
+      const endValidation = validateDate(end_datetime, 'End date', { allowPast: false });
+      if (!endValidation.valid) {
+        return res.status(400).json({ message: endValidation.message });
+      }
+      const rangeValidation = validateDateRange(startValidation.value, endValidation.value);
+      if (!rangeValidation.valid) {
+        return res.status(400).json({ message: rangeValidation.message });
+      }
     }
 
     // Posodobi dogodek

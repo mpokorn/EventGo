@@ -70,7 +70,7 @@ export default function OrganizerWaitlist() {
       <div className="org-events-container">
         
         {/* Back Button */}
-        <Link to="/organizer/events" className="org-btn ghost" style={{ alignSelf: 'flex-start', marginBottom: '1rem' }}>
+        <Link to="/organizer/events" className="org-back-btn">
           ← Back to Events
         </Link>
 
@@ -80,7 +80,7 @@ export default function OrganizerWaitlist() {
           <>
             {/* Event Info Card */}
             {event && (
-              <div className="org-event-card" style={{ marginBottom: '1.5rem' }}>
+              <div className="org-event-card org-event-card-spaced">
                 <div className="org-event-header">
                   <h3>{event.title}</h3>
                   <p className="org-location">{event.location}</p>
