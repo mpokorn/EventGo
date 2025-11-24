@@ -462,12 +462,33 @@ router.post("/accept-ticket/:transaction_id", async (req, res, next) => {
       [ticket.id]
     );
 
-    // If there was a ticket pending return, NOW refund it
+    // If there was a ticket pending return, NOW refund it with 2% platform fee
+    let refundAmount = 0;
+    let platformFee = 0;
     if (pendingReturnTicket.rows.length > 0) {
       const returnedTicket = pendingReturnTicket.rows[0];
+      
+      // Get original transaction to calculate refund (98% of original price)
+      const originalTx = await pool.query(
+        `SELECT total_price FROM transactions WHERE id = $1;`,
+        [returnedTicket.transaction_id]
+      );
+      
+      const originalPrice = parseFloat(originalTx.rows[0].total_price);
+      platformFee = originalPrice * 0.02; // 2% fee
+      refundAmount = originalPrice - platformFee;
+      
+      // Update ticket to refunded
       await pool.query(
         `UPDATE tickets SET status = 'refunded' WHERE id = $1;`,
         [returnedTicket.id]
+      );
+      
+      // Create refund transaction record for the original owner
+      await pool.query(
+        `INSERT INTO transactions (user_id, total_price, status, payment_method)
+         VALUES ($1, $2, 'refunded', 'waitlist_return');`,
+        [returnedTicket.user_id, -refundAmount]
       );
     }
 
@@ -476,9 +497,13 @@ router.post("/accept-ticket/:transaction_id", async (req, res, next) => {
     // So we don't need to update tickets_sold count
 
     return res.status(200).json({
-      message: "Ticket accepted successfully! Previous owner of the ticket has received a refund.",
+      message: refundAmount > 0 
+        ? `Ticket accepted successfully! Previous owner will receive a refund of €${refundAmount.toFixed(2)} (2% platform fee applied).`
+        : "Ticket accepted successfully!",
       ticket: ticket,
-      refunded_ticket_id: pendingReturnTicket.rows[0]?.id
+      refunded_ticket_id: pendingReturnTicket.rows[0]?.id,
+      refund_amount: refundAmount,
+      platform_fee: platformFee.toFixed(2)
     });
 
   } catch (err) {

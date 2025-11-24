@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import api from "../api/api";
 import DashboardSidebar from "../components/DashBoardSidebar";
@@ -9,18 +10,28 @@ import ProfileTickets from "./profile_sections/ProfileTickets";
 import ProfileWaitlist from "./profile_sections/ProfileWaitlist";
 import ProfileEvents from "./profile_sections/ProfileEvents";
 import ProfileTransactions from "./profile_sections/ProfileTransactions";
+import ProfileEventTickets from "./profile_sections/ProfileEventTickets";
 
 import "../styles/dashboard.css";
 import "../styles/profile.css";
 
 export default function Profile() {
   const { user } = useAuth();
+  const { eventId } = useParams();
+  const navigate = useNavigate();
 
-  const [section, setSection] = useState("profile");
+  const [section, setSection] = useState(eventId ? "event-tickets" : "profile");
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Modal states
   const [modal, setModal] = useState({ isOpen: false, type: "confirm", title: "", message: "", onConfirm: null });
+
+  // Update section when eventId changes in URL
+  useEffect(() => {
+    if (eventId) {
+      setSection("event-tickets");
+    }
+  }, [eventId]);
 
   const [profileData, setProfileData] = useState({
     first_name: user?.first_name,
@@ -125,7 +136,7 @@ export default function Profile() {
       isOpen: true,
       type: "confirm",
       title: "Return Ticket to Waitlist",
-      message: "Your ticket will be offered to the waitlist. You'll keep access until someone else accepts it and you'll be refunded then.",
+      message: "Your ticket will be offered to the waitlist. You'll keep access until someone else accepts it. You will receive a refund of 98% of the ticket price (2% platform fee).",
       onConfirm: async () => {
         setModal({ ...modal, isOpen: false });
         try {
@@ -315,6 +326,13 @@ export default function Profile() {
 
           {section === "transactions" && (
             <ProfileTransactions transactions={transactions} tickets={tickets} loading={loading} />
+          )}
+
+          {section === "event-tickets" && eventId && (
+            <ProfileEventTickets eventId={eventId} onBack={() => {
+              navigate("/profile");
+              setSection("events");
+            }} />
           )}
 
         </div>

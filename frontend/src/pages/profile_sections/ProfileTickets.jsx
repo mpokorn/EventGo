@@ -7,9 +7,31 @@ export default function ProfileTickets({ reservedTickets, activeTickets, pending
     return event.tickets_sold >= event.total_tickets;
   };
 
+  // Check if user has any tickets eligible for return
+  const hasEligibleTickets = activeTickets.some(t => isEventSoldOut(t.event_id));
+
   return (
     <section className="profile-card profile-tickets">
-      <h2>Your Tickets</h2>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+        <h2 style={{ margin: 0 }}>Your Tickets</h2>
+        {hasEligibleTickets && !loading && (
+          <div style={{
+            background: 'rgba(255, 152, 0, 0.1)',
+            border: '1px solid rgba(255, 152, 0, 0.3)',
+            borderRadius: '8px',
+            padding: '0.75rem 1rem',
+            fontSize: '0.9rem',
+            color: '#FF9800',
+            maxWidth: '300px',
+            textAlign: 'right'
+          }}>
+            <strong>Can't attend the event?</strong>
+            <div style={{ fontSize: '0.85rem', marginTop: '0.25rem', color: '#cbd5e1' }}>
+              You can return eligible tickets below for sold-out events
+            </div>
+          </div>
+        )}
+      </div>
 
       {loading ? (
         <p>Loading...</p>
@@ -81,7 +103,7 @@ export default function ProfileTickets({ reservedTickets, activeTickets, pending
                     <button
                       className="ticket-return-btn"
                       onClick={() => onResell(t.id, t.event_id)}
-                      title="Return ticket to waitlist - you'll be refunded when someone accepts it"
+                      title="Return ticket to waitlist - you'll be refunded 98% of ticket price when someone accepts it (2% platform fee)"
                     >
                       Return Ticket
                     </button>
@@ -109,7 +131,7 @@ export default function ProfileTickets({ reservedTickets, activeTickets, pending
                       <div className="ticket-status-box pending">
                         <strong>Return Requested</strong>
                         <span className="status-text">
-                          Your ticket is being offered to the people on the waitlist. Your ticket is valid until someone else accepts it.
+                          Your ticket is being offered to the people on the waitlist. Your ticket is valid until someone else accepts it. If your ticket is sold, you will receive 98% of the ticket price (2% platform fee).
                         </span>
                       </div>
                     </div>
@@ -134,7 +156,7 @@ export default function ProfileTickets({ reservedTickets, activeTickets, pending
                       <div className="ticket-status-box success">
                         <strong>Return Completed</strong>
                         <span className="status-text">
-                          Your ticket was successfully sold and you will be refunded.
+                          Your ticket was successfully sold and you have been refunded (2% platform fee applied).
                         </span>
                       </div>
                     </div>

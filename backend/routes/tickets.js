@@ -171,6 +171,60 @@ router.get("/user/:user_id", async (req, res, next) => {
   }
 });
 
+/* --------------------------------------
+    GET tickets for a specific user and event
+-------------------------------------- */
+router.get("/user/:user_id/event/:event_id", async (req, res, next) => {
+  const user_id = parseInt(req.params.user_id);
+  const event_id = parseInt(req.params.event_id);
+
+  if (isNaN(user_id) || isNaN(event_id)) {
+    return res.status(400).json({ message: "User ID and Event ID must be numbers." });
+  }
+
+  try {
+    // Get event details
+    const eventCheck = await pool.query(
+      `SELECT id, title, start_datetime, end_datetime, location FROM events WHERE id = $1;`,
+      [event_id]
+    );
+
+    if (eventCheck.rowCount === 0) {
+      return res.status(404).json({ message: "Event does not exist!" });
+    }
+
+    // Fetch tickets for this user and event
+    const result = await pool.query(
+      `
+      SELECT 
+        t.id,
+        t.user_id,
+        t.event_id,
+        t.ticket_type_id,
+        tt.type AS ticket_type,
+        tt.price AS ticket_price,
+        t.transaction_id,
+        t.status,
+        t.issued_at
+      FROM tickets t
+      LEFT JOIN ticket_types tt ON t.ticket_type_id = tt.id
+      WHERE t.user_id = $1 AND t.event_id = $2
+      ORDER BY t.issued_at DESC;
+      `,
+      [user_id, event_id]
+    );
+
+    res.status(200).json({
+      message: "User event tickets retrieved successfully.",
+      event: eventCheck.rows[0],
+      total_tickets: result.rowCount,
+      tickets: result.rows,
+    });
+  } catch (err) {
+    console.error(" Error in GET /tickets/user/:user_id/event/:event_id:", err);
+    next(err);
+  }
+});
 
 /* --------------------------------------
     GET all tickets for a specific event

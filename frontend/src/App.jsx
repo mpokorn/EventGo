@@ -2,7 +2,9 @@ import {
   BrowserRouter as Router,
   Routes,
   Route,
-  useLocation
+  Navigate,
+  useLocation,
+  useParams
 } from "react-router-dom";
 
 import Events from "./pages/Events";
@@ -23,6 +25,15 @@ import OrganizerAnalytics from "./pages/organizer/OrganizerAnalytics";
 
 import Header from "./components/Header";
 import { AuthProvider } from "./context/AuthContext";
+
+
+// --------------------
+// Redirect Component for old routes
+// --------------------
+function RedirectToProfile() {
+  const { eventId } = useParams();
+  return <Navigate to={`/profile/event/${eventId}`} replace />;
+}
 
 
 // --------------------
@@ -49,6 +60,9 @@ function Layout() {
           <Route path="/" element={<Events />} />
           <Route path="/events" element={<Events />} />
           <Route path="/events/:id" element={<EventDetail />} />
+          <Route path="/profile/event/:eventId" element={<Profile />} />
+          {/* Redirect old route to new one */}
+          <Route path="/my-tickets/event/:eventId" element={<RedirectToProfile />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/register/organizer" element={<RegisterOrganizer />} />

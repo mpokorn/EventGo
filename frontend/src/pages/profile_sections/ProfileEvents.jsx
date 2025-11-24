@@ -1,3 +1,5 @@
+import { Link } from "react-router-dom";
+
 export default function ProfileEvents({ events = [], loading }) {
   return (
     <section className="profile-card profile-events">
@@ -18,7 +20,7 @@ export default function ProfileEvents({ events = [], loading }) {
                 </div>
               </div>
               <div className="event-actions">
-                <a href={`/events/${e.id}`}>View</a>
+                <Link to={`/profile/event/${e.id}`}>View</Link>
               </div>
             </li>
           ))}

@@ -541,3 +541,134 @@
     text-align: left;
   }
 }
+
+/* ========================================
+   BACK BUTTON (Reusable)
+======================================== */
+.back-btn {
+  margin-bottom: var(--space-md);
+  padding: 0.5rem 1rem;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  borderRadius: var(--radius-md);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.3s ease;
+}
+
+.back-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  transform: translateX(-4px);
+}
+
+/* ========================================
+   TICKET HEADER & INFO SECTIONS
+======================================== */
+.tickets-header {
+  display: flex;
+  justify-content: space-between;
+  alignItems: flex-start;
+  marginBottom: var(--space-md);
+}
+
+.tickets-header h2 {
+  margin: 0;
+}
+
+.tickets-notice {
+  background: rgba(255, 152, 0, 0.1);
+  border: 1px solid rgba(255, 152, 0, 0.3);
+  border-radius: var(--radius-md);
+  padding: 0.75rem 1rem;
+  fontSize: 0.9rem;
+  color: #FF9800;
+  max-width: 300px;
+  text-align: right;
+}
+
+.tickets-notice strong {
+  display: block;
+}
+
+.tickets-notice-hint {
+  font-size: 0.85rem;
+  margin-top: 0.25rem;
+  color: #cbd5e1;
+}
+
+.sold-out-indicator {
+  color: #FF9800;
+  margin-left: 0.5rem;
+}
+
+.ticket-return-hint {
+  font-size: 0.85rem;
+  color: #9CA3AF;
+  margin-top: 0.25rem;
+}
+
+/* ========================================
+   EVENT TICKETS DETAIL PAGE
+======================================== */
+.event-tickets-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+}
+
+.event-tickets-header h2 {
+  margin: 0;
+  margin-bottom: 0.5rem;
+}
+
+.event-tickets-info {
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+}
+
+.event-tickets-info p {
+  margin: 0.25rem 0;
+}
+
+.event-tickets-link {
+  display: inline-block;
+  background: linear-gradient(90deg, var(--color-accent), var(--color-primary));
+  color: var(--color-text-primary);
+  padding: 0.625rem 1.25rem;
+  border-radius: var(--radius-md);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.event-tickets-link:hover {
+  filter: brightness(1.1);
+  transform: translateY(-2px);
+}
+
+.transaction-status-indicator {
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.transaction-status-success {
+  color: var(--color-success);
+}
+
+.ticket-transaction-id {
+  font-size: 0.85rem;
+  color: #9CA3AF;
+  margin-top: 0.5rem;
+}
+
+
