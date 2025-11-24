@@ -201,7 +201,45 @@ router.post("/", async (req, res, next) => {
       });
     }
 
-    // Insert
+    // Check if there are any pending_return tickets for this event
+    const pendingTicketCheck = await pool.query(
+      `SELECT t.id, t.ticket_type_id, tt.price 
+       FROM tickets t
+       LEFT JOIN ticket_types tt ON t.ticket_type_id = tt.id
+       WHERE t.event_id = $1 AND t.status = 'pending_return'
+       ORDER BY t.issued_at ASC
+       LIMIT 1;`,
+      [event_id]
+    );
+
+    // If there's a pending_return ticket, offer it immediately instead of joining waitlist
+    if (pendingTicketCheck.rows.length > 0) {
+      const pendingTicket = pendingTicketCheck.rows[0];
+      
+      // Create PENDING transaction for this user
+      const txResult = await pool.query(
+        `INSERT INTO transactions (user_id, total_price, status, payment_method)
+         VALUES ($1, $2, 'pending', 'waitlist')
+         RETURNING id;`,
+        [user_id, pendingTicket.price || 0]
+      );
+      const transaction_id = txResult.rows[0].id;
+
+      // Create reserved ticket for the user
+      await pool.query(
+        `INSERT INTO tickets (transaction_id, ticket_type_id, event_id, user_id, status)
+         VALUES ($1, $2, $3, $4, 'reserved');`,
+        [transaction_id, pendingTicket.ticket_type_id, event_id, user_id]
+      );
+
+      return res.status(201).json({
+        message: "A ticket is available! You have been offered a returned ticket. Please accept or decline it.",
+        ticket_offered: true,
+        transaction_id: transaction_id
+      });
+    }
+
+    // No pending tickets available, join waitlist normally
     const inserted = await pool.query(
       `INSERT INTO waitlist (user_id, event_id)
        VALUES ($1, $2)
@@ -438,7 +476,7 @@ router.post("/accept-ticket/:transaction_id", async (req, res, next) => {
     // So we don't need to update tickets_sold count
 
     return res.status(200).json({
-      message: "Ticket accepted successfully! Previous owner has received a refund.",
+      message: "Ticket accepted successfully! Previous owner of the ticket has received a refund.",
       ticket: ticket,
       refunded_ticket_id: pendingReturnTicket.rows[0]?.id
     });

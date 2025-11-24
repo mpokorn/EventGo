@@ -1,7 +1,11 @@
 import express from "express";
 import pool from "../db.js";
+import { requireAuth } from "../middleware/auth.js";
 
 const router = express.Router();
+
+// Protect all transaction routes
+router.use(requireAuth);
 
 /* --------------------------------------
     Get all transactions (with buyer + summary)
@@ -57,7 +61,7 @@ router.get("/user/:id", async (req, res, next) => {
       });
     }
 
-    // Fetch user transactions
+    // Fetch user transactions with event and ticket type details
     const transactionsResult = await pool.query(
       `
       SELECT 
@@ -69,12 +73,16 @@ router.get("/user/:id", async (req, res, next) => {
         tr.payment_method,
         tr.reference_code,
         tr.created_at,
-        COUNT(t.id) AS total_tickets
+        COUNT(t.id) AS quantity,
+        e.title AS event_title,
+        tt.type AS ticket_type
       FROM transactions tr
       JOIN users u ON tr.user_id = u.id
       LEFT JOIN tickets t ON tr.id = t.transaction_id
+      LEFT JOIN events e ON t.event_id = e.id
+      LEFT JOIN ticket_types tt ON t.ticket_type_id = tt.id
       WHERE tr.user_id = $1
-      GROUP BY tr.id, u.first_name, u.last_name
+      GROUP BY tr.id, u.first_name, u.last_name, e.title, tt.type
       ORDER BY tr.created_at DESC;
       `,
       [userId]

@@ -1,12 +1,14 @@
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
+import Modal from "../components/Modal";
 import api from "../api/api";
 import "../styles/event_details.css";
 
 export default function EventDetail() {
   const { id } = useParams();
   const { user, requireAuth } = useAuth();
+  const navigate = useNavigate();
 
   const [event, setEvent] = useState(null);
   const [ticketType, setTicketType] = useState("");
@@ -18,6 +20,9 @@ export default function EventDetail() {
 
   // WAITLIST STATE
   const [joined, setJoined] = useState(false);
+
+  // MODAL STATE
+  const [modal, setModal] = useState({ isOpen: false, type: "confirm", title: "", message: "", onConfirm: null });
 
   // Load event data
   useEffect(() => {
@@ -49,6 +54,23 @@ export default function EventDetail() {
       }
     }
 
+    const selectedTicketType = event.ticket_types?.find(t => t.id === parseInt(ticketType));
+    const totalPrice = selectedTicketType ? selectedTicketType.price * quantity : 0;
+
+    setModal({
+      isOpen: true,
+      type: "confirm",
+      title: "Confirm Purchase",
+      message: `Are you sure you want to purchase ${quantity} ${selectedTicketType?.type} ticket(s) for €${totalPrice.toFixed(2)}?`,
+      onConfirm: async () => {
+        setModal({ ...modal, isOpen: false });
+        await executePurchase();
+      }
+    });
+  }
+
+  // Execute the actual purchase
+  async function executePurchase() {
     const purchase = async () => {
       try {
         setLoading(true);
@@ -81,20 +103,39 @@ export default function EventDetail() {
 
   // WAITLIST JOIN FUNCTION
   async function joinWaitlist() {
-    requireAuth(async () => {
-      try {
-        const res = await api.post("/waitlist", {
-          user_id: user.id,
-          event_id: event.id,
-        });
+    setModal({
+      isOpen: true,
+      type: "confirm",
+      title: "Join Waitlist",
+      message: "Are you sure you want to join the waitlist? You'll be notified if a ticket becomes available.",
+      onConfirm: async () => {
+        setModal({ ...modal, isOpen: false });
+        requireAuth(async () => {
+          try {
+            const res = await api.post("/waitlist", {
+              user_id: user.id,
+              event_id: event.id,
+            });
 
-        setJoined(true);
-        const position = res.data.position;
-        setMessage(`You've been added to the waitlist! You are #${position} in line.`);
-        setMessageType("success");
-      } catch (err) {
-        setMessage(err.response?.data?.message || "Error joining waitlist.");
-        setMessageType("error");
+            setJoined(true);
+            const position = res.data.position;
+            setModal({
+              isOpen: true,
+              type: "alert",
+              title: "Success",
+              message: `You've been added to the waitlist! You are #${position} in line.`,
+              onConfirm: null
+            });
+          } catch (err) {
+            setModal({
+              isOpen: true,
+              type: "alert",
+              title: "Error",
+              message: err.response?.data?.message || "Error joining waitlist.",
+              onConfirm: null
+            });
+          }
+        });
       }
     });
   }
@@ -115,6 +156,36 @@ export default function EventDetail() {
 
   return (
     <div className="event-detail-page">
+
+      {/* BACK BUTTON */}
+      <button 
+        className="back-button"
+        onClick={() => navigate(-1)}
+        style={{
+          marginBottom: '1rem',
+          padding: '0.5rem 1rem',
+          background: 'rgba(255, 255, 255, 0.1)',
+          border: '1px solid rgba(255, 255, 255, 0.2)',
+          borderRadius: '8px',
+          color: '#fff',
+          cursor: 'pointer',
+          fontSize: '0.9rem',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.5rem',
+          transition: 'all 0.3s ease'
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
+          e.currentTarget.style.transform = 'translateX(-4px)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+          e.currentTarget.style.transform = 'translateX(0)';
+        }}
+      >
+        ← Back
+      </button>
 
       {/* HEADER */}
       <div className="event-detail-header">
@@ -208,6 +279,15 @@ export default function EventDetail() {
           {message}
         </div>
       )}
+
+      <Modal
+        isOpen={modal.isOpen}
+        onClose={() => setModal({ ...modal, isOpen: false })}
+        onConfirm={modal.onConfirm}
+        title={modal.title}
+        message={modal.message}
+        type={modal.type}
+      />
     </div>
   );
 }

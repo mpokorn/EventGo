@@ -2,6 +2,7 @@
 import express from "express";
 import pool from "../db.js";
 import { hashPassword, comparePassword, generateToken, generateRefreshToken, verifyToken } from "../utils/auth.js";
+import { requireAuth } from "../middleware/auth.js";
 
 const router = express.Router();
 
@@ -224,9 +225,9 @@ router.post("/organizer-login", async (req, res, next) => {
 });
 
 /* --------------------------------------
-    Get all users (optional role filter)
+    Get all users (PROTECTED - optional role filter)
 -------------------------------------- */
-router.get("/", async (req, res, next) => {
+router.get("/", requireAuth, async (req, res, next) => {
   const { role } = req.query;
 
   try {
@@ -251,13 +252,18 @@ router.get("/", async (req, res, next) => {
 });
 
 /* --------------------------------------
-    Get user by ID (with counts)
+    Get user by ID (PROTECTED - Own profile only)
 -------------------------------------- */
-router.get("/:id", async (req, res, next) => {
+router.get("/:id", requireAuth, async (req, res, next) => {
   const id = parseInt(req.params.id);
 
   if (isNaN(id)) {
     return res.status(400).json({ message: "ID must be a number." });
+  }
+
+  // Verify user is accessing their own profile
+  if (req.user.id !== id) {
+    return res.status(403).json({ message: "You can only access your own profile!" });
   }
 
   try {
@@ -296,9 +302,9 @@ router.get("/:id", async (req, res, next) => {
 });
 
 /* --------------------------------------
-    Add user (admin only - optional)
+    Add user (PROTECTED - admin only)
 -------------------------------------- */
-router.post("/", async (req, res, next) => {
+router.post("/", requireAuth, async (req, res, next) => {
   const { first_name, last_name, email, password, role } = req.body;
 
   if (!first_name || !last_name || !email || !password) {
@@ -399,13 +405,18 @@ router.post("/refresh-token", async (req, res, next) => {
 });
 
 /* --------------------------------------
-    Delete user
+    Delete user (PROTECTED - Own account only)
 -------------------------------------- */
-router.delete("/:id", async (req, res, next) => {
+router.delete("/:id", requireAuth, async (req, res, next) => {
   const id = parseInt(req.params.id);
 
   if (isNaN(id)) {
     return res.status(400).json({ message: "ID must be a number." });
+  }
+
+  // Verify user is deleting their own account
+  if (req.user.id !== id) {
+    return res.status(403).json({ message: "You can only delete your own account!" });
   }
 
   try {

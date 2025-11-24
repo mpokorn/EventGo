@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import api from "../api/api";
 import { EventsGridSkeleton } from "../components/SkeletonLoaders";
 import "../styles/events.css";
@@ -10,6 +10,8 @@ export default function Events() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [pagination, setPagination] = useState(null);
   const currentPage = parseInt(searchParams.get("page") || "1");
+  const navigate = useNavigate();
+  const searchQuery = searchParams.get("search");
 
   const fetchEvents = async () => {
     setLoading(true);
@@ -17,24 +19,11 @@ export default function Events() {
       const params = new URLSearchParams(searchParams);
       if (!params.has("page")) params.set("page", "1");
       
-      //console.log('Fetching events with params:', params.toString());
       const res = await api.get(`/events?${params.toString()}`);
-      //console.log('Backend response:', res.data);
-      
-      const now = new Date();
       const eventsData = res.data.events || res.data || [];
-      //console.log('Events from backend:', eventsData.length);
       
-      const upcoming = eventsData.filter((e) => {
-        const end = e?.end_datetime ? new Date(e.end_datetime) : null;
-        const start = e?.start_datetime ? new Date(e.start_datetime) : null;
-        if (end instanceof Date && !isNaN(end)) return end > now;
-        if (start instanceof Date && !isNaN(start)) return start > now;
-        return true;
-      });
-      
-      //console.log('Upcoming events after filter:', upcoming.length);
-      setEvents(upcoming);
+      // Backend now filters for upcoming events, so we just use the data directly
+      setEvents(eventsData);
       
       if (res.data.pagination) {
         setPagination(res.data.pagination);
@@ -60,8 +49,40 @@ export default function Events() {
 
   return (
     <div className="events-page">
+      {/* Show back button if there's a search query or other filters */}
+      {searchQuery && (
+        <button 
+          className="back-button"
+          onClick={() => navigate(-1)}
+          style={{
+            marginBottom: '1rem',
+            padding: '0.5rem 1rem',
+            background: 'rgba(255, 255, 255, 0.1)',
+            border: '1px solid rgba(255, 255, 255, 0.2)',
+            borderRadius: '8px',
+            color: '#fff',
+            cursor: 'pointer',
+            fontSize: '0.9rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            transition: 'all 0.3s ease'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
+            e.currentTarget.style.transform = 'translateX(-4px)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+            e.currentTarget.style.transform = 'translateX(0)';
+          }}
+        >
+          ← Back
+        </button>
+      )}
+      
       <div className="events-header">
-        <h1 className="events-title">Upcoming Events</h1>
+        <h1 className="events-title">{searchQuery ? `Search Results for "${searchQuery}"` : 'Upcoming Events'}</h1>
         <p className="events-subtitle">Discover and join events happening near you.</p>
       </div>
 
@@ -76,7 +97,12 @@ export default function Events() {
               const isSoldOut = e.tickets_sold >= e.total_tickets;
               
               return (
-                <div className="event-card" key={e.id}>
+                <div 
+                  className="event-card" 
+                  key={e.id}
+                  onClick={() => navigate(`/events/${e.id}`)}
+                  style={{ cursor: 'pointer' }}
+                >
                   {isSoldOut && <div className="sold-out-badge">SOLD OUT</div>}
                   <div className="event-card-content">
                     <h2 className="event-title">{e.title}</h2>
@@ -96,7 +122,11 @@ export default function Events() {
                       </p>
                     </div>
 
-                    <Link to={`/events/${e.id}`} className={`event-btn ${isSoldOut ? 'sold-out' : ''}`}>
+                    <Link 
+                      to={`/events/${e.id}`} 
+                      className={`event-btn ${isSoldOut ? 'sold-out' : ''}`}
+                      onClick={(event) => event.stopPropagation()}
+                    >
                       {isSoldOut ? 'Join Waitlist' : 'Buy Tickets'}
                     </Link>
                   </div>

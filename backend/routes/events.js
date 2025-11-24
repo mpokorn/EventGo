@@ -1,5 +1,6 @@
 import express from "express";
 import pool from "../db.js";
+import { requireAuth } from "../middleware/auth.js";
 
 const router = express.Router();
 
@@ -59,6 +60,9 @@ router.get("/", async (req, res, next) => {
       paramCount++;
     }
     
+    // Only show upcoming events (where end_datetime or start_datetime is in the future)
+    queryText += ` AND (e.end_datetime > NOW() OR (e.end_datetime IS NULL AND e.start_datetime > NOW()))`;
+    
     queryText += ` ORDER BY e.start_datetime ASC`;
     
     // Get total count for pagination
@@ -89,10 +93,15 @@ router.get("/", async (req, res, next) => {
 
 
 /* --------------------------------------
-   GET all events for a specific organizer
+   GET all events for a specific organizer (PROTECTED)
 -------------------------------------- */
-router.get("/organizer/:organizerId", async (req, res, next) => {
+router.get("/organizer/:organizerId", requireAuth, async (req, res, next) => {
   const { organizerId } = req.params;
+
+  // Verify user is requesting their own events
+  if (req.user.id !== parseInt(organizerId)) {
+    return res.status(403).json({ message: "You can only view your own events!" });
+  }
 
   try {
     const result = await pool.query(
@@ -164,9 +173,9 @@ router.get("/:id", async (req, res, next) => {
 });
 
 /* --------------------------------------
-   Create a new event (only organizer or admin)
+   Create a new event (PROTECTED - Organizers only)
 -------------------------------------- */
-router.post("/", async (req, res, next) => {
+router.post("/", requireAuth, async (req, res, next) => {
   const {
     title,
     description,
@@ -174,31 +183,23 @@ router.post("/", async (req, res, next) => {
     end_datetime,
     location,
     total_tickets,
-    organizer_id,
   } = req.body;
 
+  const organizer_id = req.user.id; // Get from JWT token
+
+  // Verify user is an organizer
+  if (req.user.role !== 'organizer') {
+    return res.status(403).json({ message: "Only organizers can create events!" });
+  }
+
   // osnovna validacija
-  if (!title || !start_datetime || !end_datetime || !location || !total_tickets || !organizer_id) {
+  if (!title || !start_datetime || !end_datetime || !location || !total_tickets) {
     return res.status(400).json({
       message: "Manjkajo podatki za ustvarjanje dogodka ali niso pravilno strukturirani!",
     });
   }
 
   try {
-    // 1️Preveri, če organizer obstaja in ima ustrezno vlogo
-    const checkOrganizer = await pool.query(
-      `SELECT role FROM users WHERE id = $1;`,
-      [organizer_id]
-    );
-
-    if (checkOrganizer.rows.length === 0) {
-      return res.status(404).json({ message: "Organizator ne obstaja!" });
-    }
-
-    const { role } = checkOrganizer.rows[0];
-    if (role !== "organizer" && role !== "admin") {
-      return res.status(403).json({ message: "Samo organizator ali admin lahko ustvari dogodek!" });
-    }
 
     // 2️ Vstavi dogodek
     const sql = `
@@ -228,9 +229,9 @@ router.post("/", async (req, res, next) => {
 });
 
 /* --------------------------------------
-   Update existing event (only organizer or admin)
+   Update existing event (PROTECTED - Own events only)
 -------------------------------------- */
-router.put("/:id", async (req, res, next) => {
+router.put("/:id", requireAuth, async (req, res, next) => {
   const { id } = req.params;
   const {
     title,
@@ -239,11 +240,10 @@ router.put("/:id", async (req, res, next) => {
     end_datetime,
     location,
     total_tickets,
-    organizer_id,
   } = req.body;
 
   try {
-    //  Preveri, ali dogodek obstaja
+    // Verify event exists and belongs to user
     const eventCheck = await pool.query(
       `SELECT id, organizer_id FROM events WHERE id = $1`,
       [id]
@@ -255,22 +255,10 @@ router.put("/:id", async (req, res, next) => {
 
     const event = eventCheck.rows[0];
 
-    //  Preveri uporabnika, ki želi posodobiti dogodek
-    const userCheck = await pool.query(
-      `SELECT id, role FROM users WHERE id = $1`,
-      [organizer_id]
-    );
-
-    if (userCheck.rows.length === 0) {
-      return res.status(404).json({ message: "Uporabnik ne obstaja!" });
-    }
-
-    const { role } = userCheck.rows[0];
-
-    // 3 Preveri dovoljenja
-    if (role !== "admin" && event.organizer_id !== parseInt(organizer_id)) {
+    // Check ownership
+    if (event.organizer_id !== req.user.id) {
       return res.status(403).json({
-        message: "Samo admin ali organizator, ki je ustvaril dogodek, ga lahko ureja!",
+        message: "You can only edit your own events!",
       });
     }
 
@@ -310,12 +298,25 @@ router.put("/:id", async (req, res, next) => {
 
 
 /* --------------------------------------
-   Get event analytics
+   Get event analytics (PROTECTED)
 -------------------------------------- */
-router.get("/:id/analytics", async (req, res, next) => {
+router.get("/:id/analytics", requireAuth, async (req, res, next) => {
   const { id } = req.params;
 
   try {
+    // Verify event belongs to user
+    const eventCheck = await pool.query(
+      `SELECT organizer_id FROM events WHERE id = $1`,
+      [id]
+    );
+
+    if (eventCheck.rows.length === 0) {
+      return res.status(404).json({ message: "Event not found!" });
+    }
+
+    if (eventCheck.rows[0].organizer_id !== req.user.id) {
+      return res.status(403).json({ message: "You can only view analytics for your own events!" });
+    }
     // Get ticket types with sales data
     const ticketTypesResult = await pool.query(
       `SELECT id, type, price, total_tickets, tickets_sold
@@ -391,14 +392,13 @@ router.get("/:id/analytics", async (req, res, next) => {
 });
 
 /* --------------------------------------
-   Delete event (only organizer or admin)
+   Delete event (PROTECTED - Own events only)
 -------------------------------------- */
-router.delete("/:id", async (req, res, next) => {
+router.delete("/:id", requireAuth, async (req, res, next) => {
   const { id } = req.params;
-  const { organizer_id } = req.body; // v praksi bi to prišlo iz JWT (req.user.id)
 
   try {
-    // Preveri, ali dogodek obstaja
+    // Verify event exists and belongs to user
     const eventCheck = await pool.query(
       `SELECT id, organizer_id FROM events WHERE id = $1`,
       [id]
@@ -410,22 +410,10 @@ router.delete("/:id", async (req, res, next) => {
 
     const event = eventCheck.rows[0];
 
-    //  Preveri uporabnika, ki poskuša izbrisati dogodek
-    const userCheck = await pool.query(
-      `SELECT id, role FROM users WHERE id = $1`,
-      [organizer_id]
-    );
-
-    if (userCheck.rows.length === 0) {
-      return res.status(404).json({ message: "Uporabnik ne obstaja!" });
-    }
-
-    const { role } = userCheck.rows[0];
-
-    //  Dovoli samo, če je admin ali lastnik dogodka
-    if (role !== "admin" && event.organizer_id !== parseInt(organizer_id)) {
+    // Check ownership
+    if (event.organizer_id !== req.user.id) {
       return res.status(403).json({
-        message: "Samo admin ali organizator, ki je ustvaril dogodek, ga lahko izbriše!",
+        message: "You can only delete your own events!",
       });
     }
 

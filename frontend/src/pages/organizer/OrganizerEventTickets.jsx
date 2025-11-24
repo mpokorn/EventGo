@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 
 import OrganizerLayout from "../../components/OrganizerLayout";
+import Modal from "../../components/Modal";
 import { ticketService } from "../../api/ticketService";
 import { transactionService } from "../../api/transactionService";
 import { TicketListSkeleton } from "../../components/SkeletonLoaders";
@@ -15,6 +16,7 @@ export default function OrganizerEventTickets() {
   const [transactionMap, setTransactionMap] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [modal, setModal] = useState({ isOpen: false, type: "confirm", title: "", message: "", onConfirm: null });
 
   // Load all tickets for this event
   const loadTickets = async () => {
@@ -59,20 +61,32 @@ export default function OrganizerEventTickets() {
 
   // Refund ticket
   const refundTicket = async (ticketId) => {
-    if (!window.confirm("Refund this ticket?")) return;
-
-    try {
-      await ticketService.refund(ticketId);
-
-      setTickets((prev) =>
-        prev.map((t) =>
-          t.id === ticketId ? { ...t, status: "refunded" } : t
-        )
-      );
-    } catch (err) {
-      console.error(err);
-      alert("Refund failed: " + (err.response?.data?.message || err.message));
-    }
+    setModal({
+      isOpen: true,
+      type: "confirm",
+      title: "Refund Ticket",
+      message: "Refund this ticket?",
+      onConfirm: async () => {
+        setModal({ ...modal, isOpen: false });
+        try {
+          await ticketService.refund(ticketId);
+          setTickets((prev) =>
+            prev.map((t) =>
+              t.id === ticketId ? { ...t, status: "refunded" } : t
+            )
+          );
+        } catch (err) {
+          console.error(err);
+          setModal({
+            isOpen: true,
+            type: "alert",
+            title: "Error",
+            message: "Refund failed: " + (err.response?.data?.message || err.message),
+            onConfirm: null
+          });
+        }
+      }
+    });
   };
 
   // Helpers - categorize tickets by status
@@ -305,6 +319,15 @@ export default function OrganizerEventTickets() {
           </>
         )}
       </div>
+
+      <Modal
+        isOpen={modal.isOpen}
+        onClose={() => setModal({ ...modal, isOpen: false })}
+        onConfirm={modal.onConfirm}
+        title={modal.title}
+        message={modal.message}
+        type={modal.type}
+      />
     </OrganizerLayout>
   );
 }

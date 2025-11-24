@@ -339,41 +339,64 @@ router.post("/", async (req, res, next) => {
 });
 
 /* --------------------------------------
-    Refund ticket (Request return - ticket stays with owner until reassigned)
+    Refund ticket - Always goes to waitlist system
 -------------------------------------- */
 router.put("/:id/refund", async (req, res, next) => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) return res.status(400).json({ message: "ID must be a number." });
 
   try {
-    // Change status to 'pending_return' instead of 'refunded'
-    // Ticket stays with current owner until someone else buys it
-    const result = await pool.query(
+    // Get ticket details and check event status
+    const ticketCheck = await pool.query(
       `
-      UPDATE tickets
-      SET status = 'pending_return'
-      WHERE id = $1 AND status = 'active'
-      RETURNING ticket_type_id, event_id, user_id, *;
+      SELECT 
+        t.id, t.ticket_type_id, t.event_id, t.user_id, t.status,
+        e.tickets_sold, e.total_tickets,
+        tt.type as ticket_type_name
+      FROM tickets t
+      JOIN events e ON t.event_id = e.id
+      LEFT JOIN ticket_types tt ON t.ticket_type_id = tt.id
+      WHERE t.id = $1;
       `,
       [id]
     );
 
-    if (result.rows.length === 0) {
-      return res.status(404).json({ message: "Ticket not found or already refunded!" });
+    if (ticketCheck.rows.length === 0) {
+      return res.status(404).json({ message: "Ticket not found!" });
     }
 
-    const { ticket_type_id, event_id, user_id } = result.rows[0];
+    const ticket = ticketCheck.rows[0];
 
-    // 🎫 AUTO-ASSIGN TO WAITLIST: Use helper function from waitlist.js
-    // This will create a reserved transaction for the next person in line
-    const waitlistAssignment = await assignTicketToWaitlist(event_id, ticket_type_id);
+    if (ticket.status !== 'active') {
+      return res.status(400).json({ message: "Only active tickets can be refunded!" });
+    }
+
+    const isSoldOut = ticket.tickets_sold >= ticket.total_tickets;
+
+    // Check if event is sold out - only allow returns for sold out events
+    if (!isSoldOut) {
+      return res.status(400).json({ 
+        message: "You can only return tickets for sold out events. This event still has available tickets."
+      });
+    }
+
+    // Change status to 'pending_return' - user keeps ticket until someone buys it
+    const result = await pool.query(
+      `UPDATE tickets SET status = 'pending_return' WHERE id = $1 RETURNING *;`,
+      [id]
+    );
+
+    // Try to assign to waitlist if anyone is waiting
+    const waitlistAssignment = await assignTicketToWaitlist(ticket.event_id, ticket.ticket_type_id);
+
+    // Message based on waitlist assignment
+    const message = waitlistAssignment.assigned
+      ? "Your ticket has been offered to someone on the waitlist. You'll keep access until they accept it."
+      : "Your return request has been submitted. You'll keep the ticket until someone from the waitlist purchases it.";
 
     res.status(200).json({
-      message: waitlistAssignment.assigned 
-        ? "Refund request submitted! Ticket will be refunded when the next user purchases it."
-        : "Refund request submitted! Ticket will be refunded when a buyer is available.",
+      message,
       ticket: result.rows[0],
-      pending_return: true,
       assigned_to_waitlist: waitlistAssignment.assigned
     });
   } catch (err) {

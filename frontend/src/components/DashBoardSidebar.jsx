@@ -1,6 +1,6 @@
 import { useAuth } from "../context/AuthContext";
 import "../styles/dashboard.css";
-import { FiUser, FiList, FiClock, FiCalendar, FiX } from "react-icons/fi";
+import { FiUser, FiList, FiClock, FiCalendar, FiCreditCard, FiX } from "react-icons/fi";
 
 export default function DashboardSidebar({ section, setSection, isOpen, onClose }) {
   const { user } = useAuth();
@@ -44,6 +44,13 @@ export default function DashboardSidebar({ section, setSection, isOpen, onClose 
           onClick={() => setSection("events")}
         >
           <FiCalendar /> My Events
+        </div>
+
+        <div
+          className={`sidebar-item ${section === "transactions" ? "active" : ""}`}
+          onClick={() => setSection("transactions")}
+        >
+          <FiCreditCard /> Transactions
         </div>
       </div>
     </div>

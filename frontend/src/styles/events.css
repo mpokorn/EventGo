@@ -1,9 +1,9 @@
 
 .events-page {
-  min-height: 100vh;
   padding-top: 6rem;     
   padding-left: var(--space-xl);
   padding-right: var(--space-xl);
+  padding-bottom: 4rem;
   background: linear-gradient(180deg, var(--color-bg-primary) 0%, var(--color-bg-secondary) 100%);
   color: var(--color-text-secondary);
 }

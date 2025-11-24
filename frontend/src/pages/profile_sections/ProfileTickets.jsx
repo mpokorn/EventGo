@@ -1,4 +1,12 @@
-export default function ProfileTickets({ reservedTickets, activeTickets, pendingReturnTickets, refundedTickets, expiredTickets, loading, onResell, onAccept, onDecline }) {
+export default function ProfileTickets({ reservedTickets, activeTickets, pendingReturnTickets, refundedTickets, expiredTickets, loading, onResell, onAccept, onDecline, events }) {
+  
+  // Helper function to check if event is sold out
+  const isEventSoldOut = (eventId) => {
+    const event = events?.find(e => e.id === eventId);
+    if (!event) return false;
+    return event.tickets_sold >= event.total_tickets;
+  };
+
   return (
     <section className="profile-card profile-tickets">
       <h2>Your Tickets</h2>
@@ -49,26 +57,39 @@ export default function ProfileTickets({ reservedTickets, activeTickets, pending
           <h3>Active Tickets</h3>
           <ul className="ticket-list">
 
-            {activeTickets.map(t => (
-              <li key={t.id} className="ticket-item">
+            {activeTickets.map(t => {
+              const soldOut = isEventSoldOut(t.event_id);
+              
+              return (
+                <li key={t.id} className="ticket-item">
 
-                <div className="ticket-info">
-                  <strong>{t.event_name}</strong> – {t.ticket_type} ({t.ticket_price} €)
-                  <div className="ticket-meta">
-                    Event: {new Date(t.start_datetime).toLocaleString()}
+                  <div className="ticket-info">
+                    <strong>{t.event_name}</strong> – {t.ticket_type} ({t.ticket_price} €)
+                    <div className="ticket-meta">
+                      Event: {new Date(t.start_datetime).toLocaleString()}
+                      {soldOut && <span style={{ color: '#FF9800', marginLeft: '0.5rem' }}>● Sold Out</span>}
+                    </div>
+                    {!soldOut && (
+                      <div style={{ fontSize: '0.85rem', color: '#9CA3AF', marginTop: '0.25rem' }}>
+                        Tickets can only be returned for sold out events
+                      </div>
+                    )}
                   </div>
-                </div>
 
-                {/* RETURN / RESELL BUTTON */}
-                <button
-                  className="ticket-return-btn"
-                  onClick={() => onResell(t.id, t.event_id)}
-                >
-                  Return Ticket
-                </button>
+                  {/* RETURN BUTTON - Only show for sold out events */}
+                  {soldOut && (
+                    <button
+                      className="ticket-return-btn"
+                      onClick={() => onResell(t.id, t.event_id)}
+                      title="Return ticket to waitlist - you'll be refunded when someone accepts it"
+                    >
+                      Return Ticket
+                    </button>
+                  )}
 
-              </li>
-            ))}
+                </li>
+              );
+            })}
 
             {activeTickets.length === 0 && <p>No active tickets.</p>}
           </ul>

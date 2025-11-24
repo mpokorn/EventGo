@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import OrganizerLayout from "../../components/OrganizerLayout";
 
@@ -10,6 +11,7 @@ import "../../styles/organizer.css";
 
 export default function OrganizerCreateEvent() {
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   const [form, setForm] = useState({
     title: "",
@@ -78,19 +80,14 @@ export default function OrganizerCreateEvent() {
       }
 
       // -----------------------------
-      // Success
+      // Success - Redirect to events page
       // -----------------------------
       setMessage("Event created successfully!");
 
-      setForm({
-        title: "",
-        description: "",
-        location: "",
-        start_datetime: "",
-        end_datetime: "",
-      });
-
-      setTicketTypes([{ type: "", price: "", total_tickets: "" }]);
+      // Redirect after a brief delay to show success message
+      setTimeout(() => {
+        navigate("/organizer/events");
+      }, 1000);
 
     } catch (err) {
       setError(err.response?.data?.message || err.message);

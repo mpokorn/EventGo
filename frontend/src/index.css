@@ -112,6 +112,7 @@
 }
 
 html {
+  height: 100%;
   font-size: 16px;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -142,11 +143,12 @@ html {
 body {
   margin: 0;
   min-width: 320px;
-  min-height: 100vh;
+  height: 100%;
   font-family: var(--font-family);
   line-height: 1.6;
   color: var(--color-text-primary);
   background: linear-gradient(180deg, var(--color-bg-primary) 0%, var(--color-bg-secondary) 100%);
+  background-attachment: fixed;
 }
 
 body.organizer-bg {

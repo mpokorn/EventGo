@@ -6,7 +6,7 @@ export const requireAuth = (req, res, next) => {
     // Get the token from the Authorization header
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ message: 'Potrebna je prijava.' });
+      return res.status(401).json({ message: 'You need to be logged in.' });
     }
 
     // Verify the token
@@ -17,6 +17,6 @@ export const requireAuth = (req, res, next) => {
     req.user = decoded;
     next();
   } catch (err) {
-    return res.status(401).json({ message: 'Neveljavna seja. Prosimo, prijavite se ponovno.' });
+    return res.status(401).json({ message: 'Invalid session. Please log in again.' });
   }
 };

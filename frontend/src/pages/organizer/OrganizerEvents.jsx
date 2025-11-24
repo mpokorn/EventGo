@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import OrganizerLayout from "../../components/OrganizerLayout";
 import { useAuth } from "../../context/AuthContext";
+import Modal from "../../components/Modal";
 
 import { eventService } from "../../api/eventService";
 
@@ -11,6 +12,7 @@ export default function OrganizerEvents() {
   const { user } = useAuth();
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [modal, setModal] = useState({ isOpen: false, type: "confirm", title: "", message: "", onConfirm: null });
 
   // Load organizer's events
   useEffect(() => {
@@ -31,16 +33,28 @@ export default function OrganizerEvents() {
   }, [user]);
 
   const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this event?")) return;
-
-    try {
-      await eventService.delete(id, user.id);
-
-      setEvents((prev) => prev.filter((e) => e.id !== id));
-    } catch (err) {
-      console.error(err);
-      alert(err.response?.data?.message || "Could not delete event.");
-    }
+    setModal({
+      isOpen: true,
+      type: "confirm",
+      title: "Delete Event",
+      message: "Are you sure you want to delete this event?",
+      onConfirm: async () => {
+        setModal({ ...modal, isOpen: false });
+        try {
+          await eventService.delete(id, user.id);
+          setEvents((prev) => prev.filter((e) => e.id !== id));
+        } catch (err) {
+          console.error(err);
+          setModal({
+            isOpen: true,
+            type: "alert",
+            title: "Error",
+            message: err.response?.data?.message || "Could not delete event.",
+            onConfirm: null
+          });
+        }
+      }
+    });
   };
 
   return (
@@ -110,6 +124,15 @@ export default function OrganizerEvents() {
           ))
         )}
       </div>
+
+      <Modal
+        isOpen={modal.isOpen}
+        onClose={() => setModal({ ...modal, isOpen: false })}
+        onConfirm={modal.onConfirm}
+        title={modal.title}
+        message={modal.message}
+        type={modal.type}
+      />
     </OrganizerLayout>
   );
 }

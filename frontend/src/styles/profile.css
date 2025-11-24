@@ -339,3 +339,205 @@
   color: #2E7D32;
   border-color: #81C784;
 }
+
+/* ========================================
+  (Delete Account)
+======================================== */
+
+.danger-zone {
+  margin-top: var(--space-xl);
+  padding: var(--space-lg);
+  border: 2px solid var(--color-error);
+  border-radius: var(--radius-md);
+  background: rgba(239, 68, 68, 0.05);
+}
+
+.danger-zone h3 {
+  color: var(--color-error);
+  font-size: 1.1rem;
+  margin-bottom: var(--space-sm);
+}
+
+.danger-zone p {
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-md);
+  font-size: 0.9rem;
+}
+
+.btn-danger {
+  background: var(--color-error);
+  color: white;
+  padding: 0.625rem 1.25rem;
+  border: none;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-base);
+}
+
+.btn-danger:hover {
+  background: #dc2626;
+  transform: translateY(-1px);
+}
+
+.delete-confirm {
+  margin-top: var(--space-md);
+}
+
+.delete-warning {
+  color: var(--color-error);
+  font-weight: 600;
+  margin-bottom: var(--space-md);
+  padding: var(--space-sm);
+  background: rgba(239, 68, 68, 0.1);
+  border-radius: var(--radius-sm);
+}
+
+.delete-actions {
+  display: flex;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+}
+
+.btn-danger-confirm {
+  background: var(--color-error);
+  color: white;
+  padding: 0.625rem 1.25rem;
+  border: none;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-base);
+}
+
+.btn-danger-confirm:hover:not(:disabled) {
+  background: #dc2626;
+}
+
+.btn-danger-confirm:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ========================================
+   Transactions Section
+======================================== */
+
+.transactions-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  margin-top: var(--space-lg);
+}
+
+.transaction-item {
+  background: var(--color-surface-glass);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+  transition: all var(--transition-base);
+}
+
+.transaction-item:hover {
+  background: var(--color-surface-hover);
+  border-color: var(--color-border-focus);
+}
+
+.transaction-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: var(--space-md);
+  padding-bottom: var(--space-sm);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.transaction-id {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.transaction-id strong {
+  font-size: 1rem;
+  color: var(--color-text-primary);
+}
+
+.transaction-status {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  text-transform: uppercase;
+  display: inline-block;
+}
+
+.transaction-status.status-completed {
+  background: var(--color-success-bg);
+  color: var(--color-success);
+}
+
+.transaction-status.status-pending {
+  background: rgba(255, 152, 0, 0.1);
+  color: #FF9800;
+}
+
+.transaction-status.status-refunded {
+  background: rgba(156, 163, 175, 0.1);
+  color: #9CA3AF;
+}
+
+.transaction-status.status-failed {
+  background: var(--color-error-bg);
+  color: var(--color-error);
+}
+
+.transaction-amount {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--color-primary);
+}
+
+.transaction-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.transaction-detail-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.9rem;
+}
+
+.detail-label {
+  color: var(--color-text-secondary);
+  font-weight: 500;
+}
+
+.detail-value {
+  color: var(--color-text-primary);
+  text-align: right;
+  font-weight: 400;
+}
+
+/* Mobile responsiveness for transactions */
+@media (max-width: 640px) {
+  .transaction-header {
+    flex-direction: column;
+    gap: var(--space-sm);
+  }
+
+  .transaction-amount {
+    font-size: 1.1rem;
+  }
+
+  .transaction-detail-row {
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .detail-value {
+    text-align: left;
+  }
+}

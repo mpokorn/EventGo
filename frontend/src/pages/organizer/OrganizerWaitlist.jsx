@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import OrganizerLayout from "../../components/OrganizerLayout";
+import Modal from "../../components/Modal";
 import api from "../../api/api";
 
 import "../../styles/organizer.css";
@@ -10,6 +11,7 @@ export default function OrganizerWaitlist() {
   const [event, setEvent] = useState(null);
   const [waitlist, setWaitlist] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [modal, setModal] = useState({ isOpen: false, type: "confirm", title: "", message: "", onConfirm: null });
 
   useEffect(() => {
     const loadData = async () => {
@@ -32,16 +34,35 @@ export default function OrganizerWaitlist() {
   }, [id]);
 
   const handleRemoveFromWaitlist = async (waitlistId) => {
-    if (!window.confirm("Remove this person from the waitlist?")) return;
-
-    try {
-      await api.delete(`/waitlist/${waitlistId}`);
-      setWaitlist(prev => prev.filter(w => w.id !== waitlistId));
-      alert("Removed from waitlist successfully!");
-    } catch (err) {
-      console.error("Error removing from waitlist:", err);
-      alert(err.response?.data?.message || "Failed to remove from waitlist");
-    }
+    setModal({
+      isOpen: true,
+      type: "confirm",
+      title: "Remove from Waitlist",
+      message: "Remove this person from the waitlist?",
+      onConfirm: async () => {
+        setModal({ ...modal, isOpen: false });
+        try {
+          await api.delete(`/waitlist/${waitlistId}`);
+          setWaitlist(prev => prev.filter(w => w.id !== waitlistId));
+          setModal({
+            isOpen: true,
+            type: "alert",
+            title: "Success",
+            message: "Removed from waitlist successfully!",
+            onConfirm: null
+          });
+        } catch (err) {
+          console.error("Error removing from waitlist:", err);
+          setModal({
+            isOpen: true,
+            type: "alert",
+            title: "Error",
+            message: err.response?.data?.message || "Failed to remove from waitlist",
+            onConfirm: null
+          });
+        }
+      }
+    });
   };
 
   return (
@@ -118,6 +139,15 @@ export default function OrganizerWaitlist() {
           </>
         )}
       </div>
+
+      <Modal
+        isOpen={modal.isOpen}
+        onClose={() => setModal({ ...modal, isOpen: false })}
+        onConfirm={modal.onConfirm}
+        title={modal.title}
+        message={modal.message}
+        type={modal.type}
+      />
     </OrganizerLayout>
   );
 }

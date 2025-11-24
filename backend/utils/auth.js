@@ -36,7 +36,7 @@ export const generateRefreshToken = (user) => {
       type: 'refresh'
     },
     JWT_SECRET,
-    { expiresIn: '30d' } // Refresh token expires in 30 days
+    { expiresIn: '7d' } // Refresh token expires in 7 days
   );
 };
 

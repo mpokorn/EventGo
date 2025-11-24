@@ -1,7 +1,11 @@
 import express from "express";
 import pool from "../db.js";
+import { requireAuth } from "../middleware/auth.js";
 
 const router = express.Router();
+
+// Protect all modification routes (POST, PUT, DELETE)
+// GET routes can remain public for browsing
 
 /* --------------------------------------
     Get all ticket types for a specific event
@@ -45,9 +49,9 @@ router.get("/:event_id", async (req, res, next) => {
 });
 
 /* --------------------------------------
-    Add new ticket type (admin/organizer)
+    Add new ticket type (PROTECTED - event owner only)
 -------------------------------------- */
-router.post("/", async (req, res, next) => {
+router.post("/", requireAuth, async (req, res, next) => {
   const { event_id, type, price, total_tickets } = req.body;
 
   if (!event_id || !type || !price || !total_tickets) {
@@ -57,10 +61,14 @@ router.post("/", async (req, res, next) => {
   }
 
   try {
-    // Verify that the event exists before creating ticket types
-    const eventCheck = await pool.query(`SELECT id FROM events WHERE id = $1`, [event_id]);
+    // Verify that the event exists and belongs to user
+    const eventCheck = await pool.query(`SELECT id, organizer_id FROM events WHERE id = $1`, [event_id]);
     if (eventCheck.rowCount === 0) {
       return res.status(404).json({ message: "Event with this ID does not exist!" });
+    }
+    
+    if (eventCheck.rows[0].organizer_id !== req.user.id) {
+      return res.status(403).json({ message: "You can only create ticket types for your own events!" });
     }
 
     const result = await pool.query(
@@ -153,9 +161,9 @@ router.patch("/:id", async (req, res, next) => {
 });
 
 /* --------------------------------------
-    Delete ticket type (admin/organizer)
+    Delete ticket type (PROTECTED - event owner only)
 -------------------------------------- */
-router.delete("/:id", async (req, res, next) => {
+router.delete("/:id", requireAuth, async (req, res, next) => {
   const { id } = req.params;
 
   if (isNaN(id)) {
@@ -163,7 +171,24 @@ router.delete("/:id", async (req, res, next) => {
   }
 
   try {
-    // Optional: Check if any tickets have been sold for this type
+    // Verify ticket type belongs to user's event
+    const ownerCheck = await pool.query(
+      `SELECT tt.id, e.organizer_id 
+       FROM ticket_types tt 
+       JOIN events e ON tt.event_id = e.id 
+       WHERE tt.id = $1`,
+      [id]
+    );
+
+    if (ownerCheck.rows.length === 0) {
+      return res.status(404).json({ message: "Ticket type not found!" });
+    }
+
+    if (ownerCheck.rows[0].organizer_id !== req.user.id) {
+      return res.status(403).json({ message: "You can only delete ticket types for your own events!" });
+    }
+
+    // Check if any tickets have been sold for this type
     const usageCheck = await pool.query(
       `SELECT COUNT(*) AS sold FROM tickets WHERE ticket_type_id = $1;`,
       [id]
@@ -212,7 +237,7 @@ router.delete("/:id", async (req, res, next) => {
   }
 });
 
-router.put("/:id/recount", async (req, res, next) => {
+router.put("/:id/recount", requireAuth, async (req, res, next) => {
   const { id } = req.params;
   await pool.query(`
     UPDATE ticket_types
@@ -225,7 +250,7 @@ router.put("/:id/recount", async (req, res, next) => {
 });
 
 // Sync ALL ticket types and events (useful for fixing data)
-router.post("/sync-all", async (req, res, next) => {
+router.post("/sync-all", requireAuth, async (req, res, next) => {
   try {
     // 1. Update all ticket_types.tickets_sold based on actual tickets
     const result = await pool.query(`

@@ -2,11 +2,13 @@ import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import api from "../api/api";
 import DashboardSidebar from "../components/DashBoardSidebar";
+import Modal from "../components/Modal";
 
 import ProfileAccount from "./profile_sections/ProfileAccount";
 import ProfileTickets from "./profile_sections/ProfileTickets";
 import ProfileWaitlist from "./profile_sections/ProfileWaitlist";
 import ProfileEvents from "./profile_sections/ProfileEvents";
+import ProfileTransactions from "./profile_sections/ProfileTransactions";
 
 import "../styles/dashboard.css";
 import "../styles/profile.css";
@@ -16,6 +18,9 @@ export default function Profile() {
 
   const [section, setSection] = useState("profile");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Modal states
+  const [modal, setModal] = useState({ isOpen: false, type: "confirm", title: "", message: "", onConfirm: null });
 
   const [profileData, setProfileData] = useState({
     first_name: user?.first_name,
@@ -27,6 +32,7 @@ export default function Profile() {
   const [events, setEvents] = useState([]);
   const [tickets, setTickets] = useState([]);
   const [waitlist, setWaitlist] = useState([]);
+  const [transactions, setTransactions] = useState([]);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -57,6 +63,10 @@ export default function Profile() {
 
         const wlRes = await api.get(`/waitlist/user/${user.id}`);
         setWaitlist(wlRes.data.waitlist || []);
+
+        // Load transactions
+        const txRes = await api.get(`/transactions/user/${user.id}`);
+        setTransactions(txRes.data.transactions || []);
 
       } catch (err) {
         console.error(err);
@@ -109,55 +119,105 @@ export default function Profile() {
   };
 
 
-  /* 🎫 HANDLE TICKET REFUND */
+  /* 🎫 HANDLE TICKET REFUND/RETURN */
   const handleResell = async (ticketId, eventId) => {
-    if (!window.confirm("Request ticket return? Your ticket will be offered to the waitlist. You'll keep access until someone else accepts it.")) return;
+    setModal({
+      isOpen: true,
+      type: "confirm",
+      title: "Return Ticket to Waitlist",
+      message: "Your ticket will be offered to the waitlist. You'll keep access until someone else accepts it and you'll be refunded then.",
+      onConfirm: async () => {
+        setModal({ ...modal, isOpen: false });
+        try {
+          const res = await api.put(`/tickets/${ticketId}/refund`);
 
-    try {
-      const res = await api.put(`/tickets/${ticketId}/refund`);
+          setModal({
+            isOpen: true,
+            type: "alert",
+            title: "Success",
+            message: res.data.message,
+            onConfirm: null
+          });
 
-      alert(res.data.message);
+          // Refresh tickets & waitlist
+          const tkRes = await api.get(`/tickets/user/${user.id}`);
+          setTickets(tkRes.data.tickets || []);
 
-      // Refresh tickets & waitlist
-      const tkRes = await api.get(`/tickets/user/${user.id}`);
-      setTickets(tkRes.data.tickets || []);
+          const wlRes = await api.get(`/waitlist/user/${user.id}`);
+          setWaitlist(wlRes.data.waitlist || []);
 
-      const wlRes = await api.get(`/waitlist/user/${user.id}`);
-      setWaitlist(wlRes.data.waitlist || []);
-
-    } catch (err) {
-      alert(err.response?.data?.message || "Error refunding ticket.");
-    }
+        } catch (err) {
+          setModal({
+            isOpen: true,
+            type: "alert",
+            title: "Error",
+            message: err.response?.data?.message || "Error refunding ticket.",
+            onConfirm: null
+          });
+        }
+      }
+    });
   };
 
   /* 🎫 HANDLE ACCEPT RESERVED TICKET */
   const handleAcceptTicket = async (transactionId) => {
     try {
       const res = await api.post(`/waitlist/accept-ticket/${transactionId}`);
-      alert(res.data.message);
+      setModal({
+        isOpen: true,
+        type: "alert",
+        title: "Success",
+        message: res.data.message,
+        onConfirm: null
+      });
 
       // Refresh tickets
       const tkRes = await api.get(`/tickets/user/${user.id}`);
       setTickets(tkRes.data.tickets || []);
     } catch (err) {
-      alert(err.response?.data?.message || "Error accepting ticket.");
+      setModal({
+        isOpen: true,
+        type: "alert",
+        title: "Error",
+        message: err.response?.data?.message || "Error accepting ticket.",
+        onConfirm: null
+      });
     }
   };
 
   /*  HANDLE DECLINE RESERVED TICKET */
   const handleDeclineTicket = async (transactionId) => {
-    if (!window.confirm("Are you sure you want to decline this ticket offer?")) return;
+    setModal({
+      isOpen: true,
+      type: "confirm",
+      title: "Decline Ticket Offer",
+      message: "Are you sure you want to decline this ticket offer?",
+      onConfirm: async () => {
+        setModal({ ...modal, isOpen: false });
+        try {
+          const res = await api.post(`/waitlist/decline-ticket/${transactionId}`);
+          setModal({
+            isOpen: true,
+            type: "alert",
+            title: "Success",
+            message: res.data.message,
+            onConfirm: null
+          });
 
-    try {
-      const res = await api.post(`/waitlist/decline-ticket/${transactionId}`);
-      alert(res.data.message);
-
-      // Refresh tickets
-      const tkRes = await api.get(`/tickets/user/${user.id}`);
-      setTickets(tkRes.data.tickets || []);
-    } catch (err) {
-      alert(err.response?.data?.message || "Error declining ticket.");
-    }
+          // Refresh tickets
+          const tkRes = await api.get(`/tickets/user/${user.id}`);
+          setTickets(tkRes.data.tickets || []);
+        } catch (err) {
+          setModal({
+            isOpen: true,
+            type: "alert",
+            title: "Error",
+            message: err.response?.data?.message || "Error declining ticket.",
+            onConfirm: null
+          });
+        }
+      }
+    });
   };
 
 
@@ -241,6 +301,7 @@ export default function Profile() {
               onResell={handleResell}
               onAccept={handleAcceptTicket}
               onDecline={handleDeclineTicket}
+              events={events}
             />
           )}
 
@@ -252,8 +313,21 @@ export default function Profile() {
             <ProfileEvents events={events} loading={loading} />
           )}
 
+          {section === "transactions" && (
+            <ProfileTransactions transactions={transactions} tickets={tickets} loading={loading} />
+          )}
+
         </div>
       </div>
+
+      <Modal
+        isOpen={modal.isOpen}
+        onClose={() => setModal({ ...modal, isOpen: false })}
+        onConfirm={modal.onConfirm}
+        title={modal.title}
+        message={modal.message}
+        type={modal.type}
+      />
     </div>
   );
 }
