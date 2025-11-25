@@ -21,7 +21,7 @@ export default function ProfileWaitlist({ waitlist, loading }) {
                 </div>
               </div>
               <div className="event-actions">
-                <a href={`/events/${w.event_id}`}>View</a>
+                <a href={`/events/${w.event_id}`}>View Event</a>
               </div>
             </li>
           ))}

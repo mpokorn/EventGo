@@ -20,7 +20,7 @@ export default function ProfileEvents({ events = [], loading }) {
                 </div>
               </div>
               <div className="event-actions">
-                <Link to={`/profile/event/${e.id}`}>View</Link>
+                <Link to={`/profile/event/${e.id}`}>View tickets</Link>
               </div>
             </li>
           ))}

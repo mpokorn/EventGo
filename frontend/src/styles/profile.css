@@ -350,6 +350,14 @@
   border: 2px solid var(--color-error);
   border-radius: var(--radius-md);
   background: rgba(239, 68, 68, 0.05);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-lg);
+}
+
+.danger-zone-content {
+  flex: 1;
 }
 
 .danger-zone h3 {
@@ -360,7 +368,7 @@
 
 .danger-zone p {
   color: var(--color-text-secondary);
-  margin-bottom: var(--space-md);
+  margin-bottom: 0;
   font-size: 0.9rem;
 }
 
@@ -373,6 +381,7 @@
   font-weight: 600;
   cursor: pointer;
   transition: all var(--transition-base);
+  white-space: nowrap;
 }
 
 .btn-danger:hover {
@@ -399,9 +408,9 @@
   flex-wrap: wrap;
 }
 
-.btn-danger-confirm {
-  background: var(--color-error);
-  color: white;
+.delete-actions button {
+  flex: 1;
+  min-width: 200px;
   padding: 0.625rem 1.25rem;
   border: none;
   border-radius: var(--radius-md);
@@ -410,11 +419,33 @@
   transition: all var(--transition-base);
 }
 
+.btn-danger-confirm {
+  background: var(--color-error);
+  color: white;
+}
+
 .btn-danger-confirm:hover:not(:disabled) {
   background: #dc2626;
+  transform: translateY(-1px);
 }
 
 .btn-danger-confirm:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-danger-cancel {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--color-text-primary);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.btn-danger-cancel:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.15);
+  transform: translateY(-1px);
+}
+
+.btn-danger-cancel:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }

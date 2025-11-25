@@ -55,6 +55,10 @@ export default function ProfileEventTickets({ eventId, onBack }) {
 
   return (
     <section className="profile-card profile-tickets">
+      <button onClick={onBack} className="back-btn">
+        ← Back to My Events
+      </button>
+      
       <div className="event-tickets-header">
         <div className="event-tickets-info">
           <h2>{event?.title}</h2>

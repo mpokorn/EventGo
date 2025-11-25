@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, Link, useSearchParams } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams, useLocation } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import '../styles/auth.css';
@@ -20,6 +20,7 @@ export default function OrganizerAuth() {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
   const { organizerLogin, organizerRegister } = useAuth();
 
   useEffect(() => {
@@ -64,7 +65,9 @@ export default function OrganizerAuth() {
           password: formData.password,
         });
       }
-      navigate('/');
+      
+      const returnTo = location.state?.returnTo || '/';
+      navigate(returnTo, { replace: true });
     } catch (err) {
       setError(err.response?.data?.message || 'An error occurred. Please try again.');
     } finally {

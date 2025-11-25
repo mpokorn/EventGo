@@ -26,7 +26,7 @@ export default function Login() {
     setIsLoading(true);
 
     try {
-      // 🔥 Recommended version: Only email + password
+      //  Recommended version: Only email + password
       await login(email, password);
       //console.log("AFTER LOGIN USER:", JSON.parse(localStorage.getItem("user")));
 
@@ -48,7 +48,7 @@ export default function Login() {
     <div className="auth-page">
       <div className="auth-card">
         <div className="text-center mb-6">
-          <h2 className="text-2xl font-extrabold text-white">Sign in</h2>
+          <h2 className="text-2xl font-extrabold text-white">Log in</h2>
           <p className="mt-2 text-sm text-gray-300">
             Enter your credentials to continue
           </p>
@@ -91,7 +91,7 @@ export default function Login() {
               disabled={isLoading}
               className="btn-primary"
             >
-              {isLoading ? "Signing in..." : "Sign in"}
+              {isLoading ? "Logging in..." : "Log in"}
             </button>
           </div>
         </form>

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { validateEmail, validatePassword, validateInput } from "../utils/validation";
 import '../styles/auth.css';
@@ -16,6 +16,7 @@ export default function Register() {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
   const { register } = useAuth();
 
   const handleChange = (e) => {
@@ -74,7 +75,9 @@ export default function Register() {
       };
 
       await register(registrationData);
-      navigate("/");
+      
+      const returnTo = location.state?.returnTo || "/";
+      navigate(returnTo, { replace: true });
     } catch (err) {
       setError(
         err.response?.data?.message ||

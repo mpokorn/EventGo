@@ -72,12 +72,44 @@ export const AuthProvider = ({ children }) => {
     navigate("/");
   };
 
-  const requireAuth = (fn) => {
+  const isTokenExpired = () => {
+    const token = localStorage.getItem("token");
+    if (!token) return true;
+
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      const expiresAt = payload.exp * 1000;
+      
+      // Consider token expired if it expires within 1 minute
+      return Date.now() >= (expiresAt - 60000);
+    } catch (error) {
+      console.error("Error checking token expiry:", error);
+      return true;
+    }
+  };
+
+  const requireAuth = (redirectPath) => {
     if (!user) {
-      navigate("/login");
+      // Save the current location to redirect back after login
+      const currentPath = window.location.pathname + window.location.search;
+      navigate("/login", { state: { returnTo: currentPath } });
       return false;
     }
-    return fn();
+
+    // Check token expiry before proceeding
+    if (isTokenExpired()) {
+      console.warn("Token expired, logging out");
+      logout();
+      const currentPath = redirectPath || window.location.pathname + window.location.search;
+      navigate("/login", { state: { returnTo: currentPath } });
+      return false;
+    }
+
+    return true;
+  };
+
+  const checkAuth = () => {
+    return user && !isTokenExpired();
   };
 
   return (
@@ -91,6 +123,8 @@ export const AuthProvider = ({ children }) => {
         organizerLogin,
         organizerRegister,
         requireAuth,
+        checkAuth,
+        isTokenExpired,
       }}
     >
       {children}

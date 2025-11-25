@@ -68,8 +68,10 @@ export default function ProfileAccount({ profileData, handleChange, handleSave, 
       </form>
 
       <div className="danger-zone">
-        
-        <p>Are you sure you want to delete your account? Please be certain.</p>
+        <div className="danger-zone-content">
+          <h3>Delete Account</h3>
+          <p>Are you sure you want to delete your account? Please be certain.</p>
+        </div>
         
         {!showDeleteConfirm ? (
           <button 
@@ -93,7 +95,7 @@ export default function ProfileAccount({ profileData, handleChange, handleSave, 
               </button>
               <button 
                 type="button" 
-                className="btn-secondary" 
+                className="btn-danger-cancel" 
                 onClick={() => setShowDeleteConfirm(false)}
                 disabled={deleting}
               >
