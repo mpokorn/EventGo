@@ -471,6 +471,113 @@ router.post("/refresh-token", async (req, res, next) => {
 });
 
 /* --------------------------------------
+    Update user profile (PROTECTED - Own account only)
+-------------------------------------- */
+router.put("/:id", requireAuth, validateId('id'), sanitizeBody, async (req, res, next) => {
+  const id = req.params.id; // Already validated and converted to number
+  const { first_name, last_name, email, password } = req.body;
+
+  // Verify user is updating their own account
+  if (req.user.id !== id) {
+    return res.status(403).json({ message: "You can only update your own profile!" });
+  }
+
+  // Validate at least one field is provided
+  if (!first_name && !last_name && !email && !password) {
+    return res.status(400).json({ message: "At least one field must be provided to update." });
+  }
+
+  try {
+    // Check user exists
+    const userCheck = await pool.query("SELECT id, email FROM users WHERE id = $1", [id]);
+    if (userCheck.rows.length === 0) {
+      return res.status(404).json({ message: "User not found!" });
+    }
+
+    // Build dynamic update query
+    const updates = [];
+    const values = [];
+    let paramIndex = 1;
+
+    if (first_name !== undefined) {
+      const validation = validateString(first_name, 'First name', 1, 100);
+      if (!validation.valid) {
+        return res.status(400).json({ message: validation.message });
+      }
+      updates.push(`first_name = $${paramIndex++}`);
+      values.push(validation.value);
+    }
+
+    if (last_name !== undefined) {
+      const validation = validateString(last_name, 'Last name', 1, 100);
+      if (!validation.valid) {
+        return res.status(400).json({ message: validation.message });
+      }
+      updates.push(`last_name = $${paramIndex++}`);
+      values.push(validation.value);
+    }
+
+    if (email !== undefined) {
+      const validation = validateEmail(email);
+      if (!validation.valid) {
+        return res.status(400).json({ message: validation.message });
+      }
+      
+      const sanitizedEmail = email.toLowerCase().trim();
+      
+      // Check if email is already taken by another user
+      const emailCheck = await pool.query(
+        "SELECT id FROM users WHERE email = $1 AND id != $2",
+        [sanitizedEmail, id]
+      );
+      
+      if (emailCheck.rows.length > 0) {
+        return res.status(400).json({ message: "Email already in use by another account!" });
+      }
+      
+      updates.push(`email = $${paramIndex++}`);
+      values.push(sanitizedEmail);
+    }
+
+    if (password !== undefined && password.trim() !== '') {
+      const validation = validatePassword(password);
+      if (!validation.valid) {
+        return res.status(400).json({ message: validation.message });
+      }
+      
+      const hashedPassword = await hashPassword(password);
+      updates.push(`password = $${paramIndex++}`);
+      values.push(hashedPassword);
+    }
+
+    // Check if any fields were actually updated
+    if (updates.length === 0) {
+      return res.status(400).json({ message: "No valid fields provided to update." });
+    }
+
+    // Add user ID for WHERE clause
+    values.push(id);
+
+    const query = `
+      UPDATE users 
+      SET ${updates.join(', ')}
+      WHERE id = $${paramIndex}
+      RETURNING id, first_name, last_name, email, role, created_at;
+    `;
+
+    const result = await pool.query(query, values);
+
+    res.status(200).json({
+      message: "Profile updated successfully!",
+      user: result.rows[0]
+    });
+  } catch (err) {
+    console.error("Error in PUT /users/:id:", err);
+    next(err);
+  }
+});
+
+/* --------------------------------------
     Delete user (PROTECTED - Own account only)
 -------------------------------------- */
 router.delete("/:id", requireAuth, validateId('id'), async (req, res, next) => {

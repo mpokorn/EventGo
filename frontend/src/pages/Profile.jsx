@@ -34,9 +34,9 @@ export default function Profile() {
   }, [eventId]);
 
   const [profileData, setProfileData] = useState({
-    first_name: user?.first_name,
-    last_name: user?.last_name,
-    email: user?.email,
+    first_name: user?.first_name || "",
+    last_name: user?.last_name || "",
+    email: user?.email || "",
     password: ""
   });
 
@@ -49,6 +49,18 @@ export default function Profile() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+
+  /* UPDATE PROFILE DATA WHEN USER CONTEXT CHANGES */
+  useEffect(() => {
+    if (user) {
+      setProfileData({
+        first_name: user.first_name || "",
+        last_name: user.last_name || "",
+        email: user.email || "",
+        password: ""
+      });
+    }
+  }, [user]);
 
   /* LOAD ALL PROFILE DATA */
   useEffect(() => {

@@ -43,7 +43,7 @@ export default function Header() {
 
               <input
                 type="text"
-                placeholder="Search events or locations..."
+                placeholder="Search events..."
                 className="search-input"
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
