@@ -58,6 +58,14 @@ api.interceptors.response.use(
 
     // Handle 401 Unauthorized (token expired)
     if (error.response?.status === 401 && !originalRequest._retry) {
+      // Don't intercept login/register requests - let them fail naturally
+      const isAuthEndpoint = originalRequest.url.includes('/login') || 
+                            originalRequest.url.includes('/register');
+      
+      if (isAuthEndpoint) {
+        return Promise.reject(error);
+      }
+
       if (originalRequest.url.includes('/refresh-token')) {
         // Refresh token also expired, logout user
         localStorage.clear();
