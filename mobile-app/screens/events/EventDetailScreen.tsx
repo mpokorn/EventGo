@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { eventService } from '../../services/eventService';
@@ -16,9 +17,12 @@ import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { Modal } from '../../components/ui/Modal';
 import { colors, spacing, typography } from '../../constants/theme';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 
-export default function EventDetailScreen({ route, navigation }: any) {
-  const { eventId } = route.params;
+export default function EventDetailScreen() {
+  const router = useRouter();
+  const { id } = useLocalSearchParams();
+  const eventId = Number(id);
   const { user } = useAuth();
   const [event, setEvent] = useState<Event | null>(null);
   const [ticketTypes, setTicketTypes] = useState<TicketType[]>([]);
@@ -41,17 +45,19 @@ export default function EventDetailScreen({ route, navigation }: any) {
         eventService.getTicketTypes(eventId),
       ]);
       setEvent(eventData);
-      setTicketTypes(ticketTypesData);
+      setTicketTypes(ticketTypesData || []);
     } catch (err: any) {
-      Alert.alert('Error', 'Failed to load event details');
-      navigation.goBack();
+      console.error('Error loading event details:', err);
+      const errorMessage = err?.response?.data?.message || 'Failed to load event details';
+      Alert.alert('Error', errorMessage);
+      router.back();
     } finally {
       setLoading(false);
     }
   };
 
   const handlePurchase = async () => {
-    if (!selectedTicketType || !user) return;
+    if (!selectedTicketType || !user?.id) return;
 
     setPurchasing(true);
     try {
@@ -59,13 +65,18 @@ export default function EventDetailScreen({ route, navigation }: any) {
         event_id: eventId,
         ticket_type_id: selectedTicketType.id,
         quantity: 1,
+        payment_method: 'card',
       });
 
       Alert.alert('Success', 'Ticket purchased successfully!', [
-        { text: 'OK', onPress: () => navigation.navigate('Profile') },
+        { text: 'OK', onPress: () => {
+          setShowPurchaseModal(false);
+          loadEventDetails();
+          router.push('/(tabs)/profile');
+        }},
       ]);
-      setShowPurchaseModal(false);
     } catch (err: any) {
+      console.error('Error purchasing ticket:', err);
       Alert.alert(
         'Error',
         err?.response?.data?.message || 'Failed to purchase ticket'
@@ -76,17 +87,35 @@ export default function EventDetailScreen({ route, navigation }: any) {
   };
 
   const handleJoinWaitlist = async () => {
-    if (!user) {
+    if (!user?.id) {
       Alert.alert('Login Required', 'Please login to join the waitlist');
       return;
     }
 
     setJoiningWaitlist(true);
     try {
-      await eventService.joinWaitlist(eventId);
-      Alert.alert('Success', 'You have been added to the waitlist!');
+      const response = await eventService.joinWaitlist(user.id, eventId);
+      
+      if (response.ticket_offered) {
+        Alert.alert(
+          'Ticket Available!',
+          'A returned ticket is available! You have been offered a ticket. Please check your profile to accept or decline it.',
+          [
+            { text: 'OK', onPress: () => router.push('/(tabs)/profile') }
+          ]
+        );
+      } else if (response.position) {
+        Alert.alert(
+          'Success',
+          `You have been added to the waitlist! You are #${response.position} in line.`
+        );
+      } else {
+        Alert.alert('Success', 'You have been added to the waitlist!');
+      }
+      
       loadEventDetails();
     } catch (err: any) {
+      console.error('Error joining waitlist:', err);
       Alert.alert(
         'Error',
         err?.response?.data?.message || 'Failed to join waitlist'
@@ -122,14 +151,15 @@ export default function EventDetailScreen({ route, navigation }: any) {
   const startDate = new Date(event.start_datetime);
   const endDate = new Date(event.end_datetime);
   const isUpcoming = startDate > new Date();
-  const availableTickets = event.available_tickets > 0;
+  const availableTicketsCount = event.total_tickets - (event.tickets_sold || 0);
+  const availableTickets = availableTicketsCount > 0;
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
         <TouchableOpacity
           style={styles.backButton}
-          onPress={() => navigation.goBack()}
+          onPress={() => router.back()}
         >
           <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
@@ -182,27 +212,29 @@ export default function EventDetailScreen({ route, navigation }: any) {
           <Text style={styles.description}>{event.description}</Text>
         </View>
 
-        {isUpcoming && (
+        {isUpcoming && ticketTypes && ticketTypes.length > 0 && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Ticket Types</Text>
             {ticketTypes.map((ticketType) => {
-              const soldOut =
-                ticketType.tickets_sold >= ticketType.total_tickets;
+              const ticketsSold = ticketType.tickets_sold || 0;
+              const ticketsAvailable = ticketType.total_tickets - ticketsSold;
+              const soldOut = ticketsAvailable <= 0;
+              
               return (
                 <TouchableOpacity
                   key={ticketType.id}
                   onPress={() => !soldOut && handleTicketTypePress(ticketType)}
                   disabled={soldOut}
+                  activeOpacity={soldOut ? 1 : 0.7}
                 >
-                  <Card style={styles.ticketTypeCard}>
+                  <Card style={{...styles.ticketTypeCard, ...(soldOut ? styles.ticketTypeCardDisabled : {})}}>
                     <View style={styles.ticketTypeHeader}>
                       <Text style={styles.ticketTypeName}>{ticketType.type}</Text>
                       <Text style={styles.ticketTypePrice}>€{ticketType.price}</Text>
                     </View>
                     <View style={styles.ticketTypeFooter}>
-                      <Text style={styles.ticketTypeAvailable}>
-                        {ticketType.total_tickets - ticketType.tickets_sold} /{' '}
-                        {ticketType.total_tickets} available
+                      <Text style={[styles.ticketTypeAvailable, soldOut && styles.ticketTypeSoldOut]}>
+                        {ticketsAvailable} / {ticketType.total_tickets} available
                       </Text>
                       {soldOut && (
                         <View style={styles.soldOutBadge}>
@@ -217,7 +249,19 @@ export default function EventDetailScreen({ route, navigation }: any) {
           </View>
         )}
 
-        {isUpcoming && !availableTickets && (
+        {isUpcoming && (!ticketTypes || ticketTypes.length === 0) && (
+          <Card style={styles.noTicketsCard}>
+            <Ionicons name="ticket-outline" size={48} color={colors.textSecondary} />
+            <Text style={styles.noTicketsText}>
+              No tickets available yet
+            </Text>
+            <Text style={styles.noTicketsSubtext}>
+              Tickets for this event haven't been set up yet. Check back later!
+            </Text>
+          </Card>
+        )}
+
+        {isUpcoming && ticketTypes && ticketTypes.length > 0 && !availableTickets && (
           <Button
             title="Join Waitlist"
             onPress={handleJoinWaitlist}
@@ -250,7 +294,7 @@ export default function EventDetailScreen({ route, navigation }: any) {
           </View>
         )}
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -260,43 +304,43 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   content: {
-    padding: spacing.lg,
+    padding: spacing.md,
   },
   backButton: {
-    marginBottom: spacing.md,
+    marginBottom: spacing.sm,
   },
   title: {
     ...typography.h1,
     color: colors.text,
-    marginBottom: spacing.lg,
+    marginBottom: spacing.md,
   },
   infoCard: {
-    marginBottom: spacing.lg,
+    marginBottom: spacing.md,
   },
   infoRow: {
     flexDirection: 'row',
-    marginBottom: spacing.md,
+    marginBottom: spacing.sm,
   },
   infoTextContainer: {
-    marginLeft: spacing.md,
+    marginLeft: spacing.sm,
     flex: 1,
   },
   infoLabel: {
     color: colors.textSecondary,
-    fontSize: 12,
+    fontSize: 11,
     marginBottom: 2,
   },
   infoValue: {
     color: colors.text,
-    fontSize: 16,
+    fontSize: 15,
   },
   section: {
-    marginBottom: spacing.lg,
+    marginBottom: spacing.md,
   },
   sectionTitle: {
     ...typography.h3,
     color: colors.text,
-    marginBottom: spacing.md,
+    marginBottom: spacing.sm,
   },
   description: {
     color: colors.textSecondary,
@@ -305,6 +349,9 @@ const styles = StyleSheet.create({
   },
   ticketTypeCard: {
     marginBottom: spacing.sm,
+  },
+  ticketTypeCardDisabled: {
+    opacity: 0.6,
   },
   ticketTypeHeader: {
     flexDirection: 'row',
@@ -331,6 +378,9 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontSize: 14,
   },
+  ticketTypeSoldOut: {
+    color: colors.error,
+  },
   soldOutBadge: {
     backgroundColor: colors.error,
     paddingHorizontal: spacing.sm,
@@ -345,20 +395,37 @@ const styles = StyleSheet.create({
   waitlistButton: {
     marginTop: spacing.lg,
   },
+  noTicketsCard: {
+    alignItems: 'center',
+    padding: spacing.xl,
+    marginTop: spacing.md,
+  },
+  noTicketsText: {
+    ...typography.h3,
+    color: colors.text,
+    marginTop: spacing.md,
+    marginBottom: spacing.xs,
+  },
+  noTicketsSubtext: {
+    color: colors.textSecondary,
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
   modalText: {
     color: colors.textSecondary,
-    fontSize: 16,
+    fontSize: 15,
     marginBottom: spacing.sm,
   },
   modalTicketType: {
     color: colors.text,
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '700',
     marginBottom: spacing.xs,
   },
   modalPrice: {
     color: colors.primary,
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '600',
   },
 });

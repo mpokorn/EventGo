@@ -79,7 +79,7 @@ function ProfileAccountTab() {
   };
 
   const handleUpdate = async () => {
-    if (!validateForm()) return;
+    if (!validateForm() || !user?.id) return;
 
     setLoading(true);
     try {
@@ -93,8 +93,8 @@ function ProfileAccountTab() {
         updateData.password = formData.password;
       }
 
-      const updatedUser = await userService.updateProfile(updateData);
-      setUser(updatedUser);
+      const response = await userService.updateProfile(user.id, updateData);
+      setUser(response.user);
       setFormData((prev) => ({ ...prev, password: '', confirmPassword: '' }));
       Alert.alert('Success', 'Profile updated successfully');
     } catch (error: any) {
@@ -105,9 +105,10 @@ function ProfileAccountTab() {
   };
 
   const handleDeleteAccount = async () => {
+    if (!user?.id) return;
     setLoading(true);
     try {
-      await userService.deleteAccount();
+      await userService.deleteAccount(user.id);
       Alert.alert('Success', 'Account deleted successfully');
       // Logout will be handled by backend clearing tokens
     } catch (error: any) {

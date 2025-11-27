@@ -8,6 +8,7 @@ export const userService = {
   },
 
   updateProfile: async (
+    userId: number,
     data: {
       first_name?: string;
       last_name?: string;
@@ -15,37 +16,43 @@ export const userService = {
       password?: string;
     }
   ) => {
-    // The API will use the authenticated user's ID from the token
-    const response = await api.put(`/users/me`, data);
+    const response = await api.put(`/users/${userId}`, data);
     return response.data;
   },
 
-  deleteAccount: async () => {
-    const response = await api.delete(`/users/me`);
+  deleteAccount: async (userId: number) => {
+    const response = await api.delete(`/users/${userId}`);
     return response.data;
   },
 
-  getTickets: async () => {
-    const response = await api.get<{ tickets: Ticket[] }>(`/tickets/user/me`);
+  getTickets: async (userId: number) => {
+    const response = await api.get<{ tickets: Ticket[] }>(`/tickets/user/${userId}`);
     return response.data.tickets;
   },
 
-  getWaitlist: async () => {
+  getEventTickets: async (userId: number, eventId: number) => {
+    const response = await api.get<{ event: any; tickets: Ticket[] }>(
+      `/tickets/user/${userId}/event/${eventId}`
+    );
+    return response.data;
+  },
+
+  getWaitlist: async (userId: number) => {
     const response = await api.get<{ waitlist: WaitlistEntry[] }>(
-      `/waitlist/user/me`
+      `/waitlist/user/${userId}`
     );
     return response.data.waitlist;
   },
 
-  getTransactions: async () => {
+  getTransactions: async (userId: number) => {
     const response = await api.get<{ transactions: Transaction[] }>(
-      `/transactions/user/me`
+      `/transactions/user/${userId}`
     );
     return response.data.transactions;
   },
 
-  getUserEvents: async () => {
-    const response = await api.get(`/events/user/me`);
+  getUserEvents: async (userId: number) => {
+    const response = await api.get(`/events/organizer/${userId}`);
     return response.data;
   },
 

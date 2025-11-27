@@ -6,6 +6,8 @@ import {
   TouchableOpacity,
   ScrollView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import ProfileAccountTab from './tabs/ProfileAccountTab';
@@ -17,19 +19,50 @@ import { colors, spacing, typography } from '../../constants/theme';
 
 type TabType = 'account' | 'tickets' | 'waitlist' | 'events' | 'transactions';
 
-export default function ProfileScreen({ navigation }: any) {
+export default function ProfileScreen() {
+  const router = useRouter();
   const { user, logout } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>('account');
 
   const handleLogout = async () => {
     await logout();
+    router.push('/(tabs)');
   };
+
+  // If not logged in, show login prompt
+  if (!user) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loginPrompt}>
+          <Ionicons name="person-circle-outline" size={80} color={colors.textSecondary} />
+          <Text style={styles.loginTitle}>Login Required</Text>
+          <Text style={styles.loginSubtitle}>
+            Please login to view your profile, tickets, and transactions
+          </Text>
+          <TouchableOpacity
+            style={styles.loginButton}
+            onPress={() => router.push('/(auth)/login')}
+          >
+            <Text style={styles.loginButtonText}>Login</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.registerLink}
+            onPress={() => router.push('/(auth)/register')}
+          >
+            <Text style={styles.registerLinkText}>
+              Don't have an account? <Text style={styles.registerLinkBold}>Sign up</Text>
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   const tabs = [
     { key: 'account' as TabType, label: 'Account', icon: 'person-outline' },
     { key: 'tickets' as TabType, label: 'Tickets', icon: 'ticket-outline' },
     { key: 'waitlist' as TabType, label: 'Waitlist', icon: 'time-outline' },
-    { key: 'events' as TabType, label: 'Events', icon: 'calendar-outline' },
+    { key: 'events' as TabType, label: 'My Events', icon: 'calendar-outline' },
     {
       key: 'transactions' as TabType,
       label: 'Transactions',
@@ -42,11 +75,11 @@ export default function ProfileScreen({ navigation }: any) {
       case 'account':
         return <ProfileAccountTab />;
       case 'tickets':
-        return <ProfileTicketsTab navigation={navigation} />;
+        return <ProfileTicketsTab />;
       case 'waitlist':
         return <ProfileWaitlistTab />;
       case 'events':
-        return <ProfileEventsTab navigation={navigation} />;
+        return <ProfileEventsTab />;
       case 'transactions':
         return <ProfileTransactionsTab />;
       default:
@@ -55,7 +88,7 @@ export default function ProfileScreen({ navigation }: any) {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <View>
           <Text style={styles.greeting}>Hello,</Text>
@@ -98,7 +131,7 @@ export default function ProfileScreen({ navigation }: any) {
       </ScrollView>
 
       <View style={styles.content}>{renderTabContent()}</View>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -111,12 +144,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: spacing.lg,
-    paddingTop: spacing.xl,
+    padding: spacing.md,
+    paddingTop: spacing.md,
   },
   greeting: {
     color: colors.textSecondary,
-    fontSize: 16,
+    fontSize: 15,
   },
   name: {
     ...typography.h2,
@@ -126,12 +159,12 @@ const styles = StyleSheet.create({
     padding: spacing.sm,
   },
   tabsContainer: {
-    maxHeight: 60,
+    maxHeight: 55,
     borderBottomWidth: 1,
     borderBottomColor: colors.cardBorder,
   },
   tabsContent: {
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.md,
     gap: spacing.sm,
   },
   tab: {
@@ -155,5 +188,47 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+  },
+  loginPrompt: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing.xl,
+  },
+  loginTitle: {
+    ...typography.h2,
+    color: colors.text,
+    marginTop: spacing.lg,
+    marginBottom: spacing.sm,
+  },
+  loginSubtitle: {
+    color: colors.textSecondary,
+    fontSize: 15,
+    textAlign: 'center',
+    marginBottom: spacing.xl,
+    lineHeight: 22,
+  },
+  loginButton: {
+    backgroundColor: colors.primary,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.xl * 2,
+    borderRadius: 12,
+    marginBottom: spacing.md,
+  },
+  loginButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  registerLink: {
+    marginTop: spacing.sm,
+  },
+  registerLinkText: {
+    color: colors.textSecondary,
+    fontSize: 14,
+  },
+  registerLinkBold: {
+    color: colors.primary,
+    fontWeight: '600',
   },
 });

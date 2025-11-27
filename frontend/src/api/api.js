@@ -1,10 +1,9 @@
 
 import axios from "axios";
 
-// Use network IP for mobile compatibility
-const BASE_URL = window.location.hostname === 'localhost' 
-  ? "http://localhost:5000/" 
-  : "http://192.168.1.201:5000/";
+// Load API URL from environment variables
+// In Vite, use VITE_ prefix and access via import.meta.env
+const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 const api = axios.create({
   baseURL: BASE_URL,

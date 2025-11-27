@@ -1,10 +1,6 @@
-import { AuthProvider } from '../context/AuthContext';
-import AppNavigator from '../navigation/AppNavigator';
+import { Redirect } from 'expo-router';
 
-export default function App() {
-  return (
-    <AuthProvider>
-      <AppNavigator />
-    </AuthProvider>
-  );
+export default function Index() {
+  // Always redirect to events (browsing doesn't require auth)
+  return <Redirect href="/(tabs)" />;
 }

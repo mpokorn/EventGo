@@ -36,7 +36,7 @@ export const authService = {
   },
 
   refreshToken: async (refreshToken: string): Promise<AuthResponse> => {
-    const response = await api.post<AuthResponse>('/users/refresh-token', {
+    const response = await api.post<AuthResponse>('/users/refresh', {
       refreshToken,
     });
     return response.data;

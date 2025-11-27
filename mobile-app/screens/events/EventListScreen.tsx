@@ -7,14 +7,17 @@ import {
   RefreshControl,
   TextInput as RNTextInput,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { eventService } from '../../services/eventService';
 import { Event } from '../../types';
 import { EventCard } from '../../components/events/EventCard';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { colors, spacing, typography } from '../../constants/theme';
+import { useRouter } from 'expo-router';
 
-export default function EventListScreen({ navigation }: any) {
+export default function EventListScreen() {
+  const router = useRouter();
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -56,7 +59,7 @@ export default function EventListScreen({ navigation }: any) {
   };
 
   const handleEventPress = (event: Event) => {
-    navigation.navigate('EventDetail', { eventId: event.id });
+    router.push(`/event/${event.id}` as any);
   };
 
   if (loading) {
@@ -64,9 +67,8 @@ export default function EventListScreen({ navigation }: any) {
   }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Discover Events</Text>
         <View style={styles.searchContainer}>
           <Ionicons
             name="search"
@@ -125,7 +127,7 @@ export default function EventListScreen({ navigation }: any) {
           </View>
         }
       />
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -135,19 +137,14 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   header: {
-    padding: spacing.lg,
-    paddingBottom: spacing.md,
-  },
-  title: {
-    ...typography.h1,
-    color: colors.text,
-    marginBottom: spacing.md,
+    padding: spacing.md,
+    paddingBottom: spacing.sm,
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.inputBg,
-    borderRadius: 12,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: colors.inputBorder,
     paddingHorizontal: spacing.md,
@@ -158,14 +155,14 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     color: colors.text,
-    fontSize: 16,
-    paddingVertical: spacing.sm + 4,
+    fontSize: 15,
+    paddingVertical: spacing.sm + 2,
   },
   clearIcon: {
     marginLeft: spacing.sm,
   },
   listContent: {
-    padding: spacing.lg,
+    padding: spacing.md,
     paddingTop: spacing.sm,
   },
   errorContainer: {

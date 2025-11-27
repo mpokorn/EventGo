@@ -8,6 +8,7 @@ import {
   Alert,
   TouchableOpacity,
 } from 'react-native';
+import { useAuth } from '../../../context/AuthContext';
 import { userService } from '../../../services/userService';
 import { Card } from '../../../components/ui/Card';
 import { LoadingSpinner } from '../../../components/ui/LoadingSpinner';
@@ -16,13 +17,15 @@ import { WaitlistEntry } from '../../../types';
 import { colors, spacing, typography } from '../../../constants/theme';
 
 function ProfileWaitlistTab() {
+  const { user } = useAuth();
   const [waitlist, setWaitlist] = useState<WaitlistEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchWaitlist = useCallback(async () => {
+    if (!user?.id) return;
     try {
-      const data = await userService.getWaitlist();
+      const data = await userService.getWaitlist(user.id);
       setWaitlist(data);
     } catch (error: any) {
       Alert.alert('Error', error.message || 'Failed to load waitlist');
@@ -30,7 +33,7 @@ function ProfileWaitlistTab() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [user?.id]);
 
   useEffect(() => {
     fetchWaitlist();
@@ -64,13 +67,36 @@ function ProfileWaitlistTab() {
     );
   };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    });
+  const formatDate = (dateString: string | undefined) => {
+    if (!dateString) return 'N/A';
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return 'Invalid date';
+      return date.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      });
+    } catch (error) {
+      return 'Invalid date';
+    }
+  };
+
+  const formatEventDate = (dateString: string | undefined) => {
+    if (!dateString) return 'N/A';
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return 'Invalid date';
+      return date.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    } catch (error) {
+      return 'Invalid date';
+    }
   };
 
   if (loading) {
@@ -97,8 +123,12 @@ function ProfileWaitlistTab() {
         <Card style={styles.card}>
           <View style={styles.header}>
             <View style={styles.eventInfo}>
-              <Text style={styles.eventTitle}>{item.event_title}</Text>
-              <Text style={styles.ticketType}>{item.ticket_type_name}</Text>
+              <Text style={styles.eventTitle}>{(item as any).event_name || 'Unknown Event'}</Text>
+              {(item as any).start_datetime && (
+                <Text style={styles.eventDate}>
+                  {formatEventDate((item as any).start_datetime)}
+                </Text>
+              )}
             </View>
             <View style={styles.positionBadge}>
               <Text style={styles.positionText}>#{item.position}</Text>
@@ -106,8 +136,8 @@ function ProfileWaitlistTab() {
           </View>
 
           <View style={styles.infoRow}>
-            <Ionicons name="calendar-outline" size={16} color={colors.textSecondary} />
-            <Text style={styles.infoText}>Joined {formatDate(item.created_at)}</Text>
+            <Ionicons name="time-outline" size={16} color={colors.textSecondary} />
+            <Text style={styles.infoText}>Joined {formatDate((item as any).joined_at)}</Text>
           </View>
 
           <View style={styles.actions}>
@@ -156,6 +186,11 @@ const styles = StyleSheet.create({
   ticketType: {
     color: colors.textSecondary,
     fontSize: 14,
+  },
+  eventDate: {
+    color: colors.textSecondary,
+    fontSize: 13,
+    marginTop: 4,
   },
   positionBadge: {
     backgroundColor: colors.primary + '20',

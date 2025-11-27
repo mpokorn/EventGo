@@ -60,9 +60,9 @@ export const TicketCard: React.FC<TicketCardProps> = ({
             <Text style={styles.statusText}>{getStatusText()}</Text>
           </View>
         </View>
-        {ticket.title && (
+        {ticket.event_name && (
           <Text style={styles.eventTitle} numberOfLines={1}>
-            {ticket.title}
+            {ticket.event_name}
           </Text>
         )}
       </View>
@@ -123,7 +123,7 @@ export const TicketCard: React.FC<TicketCardProps> = ({
       {ticket.status === 'active' && onRefund && (
         <View style={styles.actions}>
           <Button
-            title="Request Refund"
+            title="Return Ticket"
             onPress={onRefund}
             variant="danger"
             style={styles.fullButton}
@@ -134,18 +134,26 @@ export const TicketCard: React.FC<TicketCardProps> = ({
       {/* Status messages */}
       {ticket.status === 'pending_return' && (
         <View style={styles.statusMessage}>
+          <Text style={styles.statusMessageTitle}>Return Requested</Text>
           <Text style={styles.statusMessageText}>
-            Your ticket is being offered to the waitlist. You'll be refunded when
-            someone accepts it.
+            Your ticket is being offered to the people on the waitlist. Your ticket is valid until someone else accepts it. If your ticket is sold, you will receive 98% of the ticket price (2% platform fee).
           </Text>
         </View>
       )}
 
       {ticket.status === 'refunded' && (
         <View style={[styles.statusMessage, { backgroundColor: colors.success + '20' }]}>
+          <Text style={styles.statusMessageTitle}>Return Completed</Text>
           <Text style={styles.statusMessageText}>
-            Your ticket was successfully sold and you have been refunded (2% platform
-            fee applied).
+            Your ticket was successfully sold and you have been refunded (2% platform fee applied).
+          </Text>
+        </View>
+      )}
+
+      {ticket.status === 'reserved' && (
+        <View style={[styles.statusMessage, { backgroundColor: colors.primary + '20' }]}>
+          <Text style={styles.statusMessageText}>
+            You've been offered this ticket from the waitlist!
           </Text>
         </View>
       )}
@@ -171,22 +179,22 @@ const styles = StyleSheet.create({
   },
   ticketId: {
     color: colors.text,
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '700',
   },
   statusBadge: {
     paddingHorizontal: spacing.sm,
     paddingVertical: 4,
-    borderRadius: 12,
+    borderRadius: 10,
   },
   statusText: {
     color: '#fff',
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '600',
   },
   eventTitle: {
     color: colors.textSecondary,
-    fontSize: 14,
+    fontSize: 13,
   },
   details: {
     marginBottom: spacing.sm,
@@ -198,13 +206,13 @@ const styles = StyleSheet.create({
   },
   detailText: {
     color: colors.text,
-    fontSize: 14,
+    fontSize: 13,
     marginLeft: spacing.sm,
     flex: 1,
   },
   detailTextSecondary: {
     color: colors.textSecondary,
-    fontSize: 12,
+    fontSize: 11,
     marginLeft: spacing.sm,
   },
   actions: {
@@ -224,9 +232,15 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginTop: spacing.sm,
   },
-  statusMessageText: {
+  statusMessageTitle: {
     color: colors.text,
     fontSize: 12,
-    lineHeight: 18,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  statusMessageText: {
+    color: colors.text,
+    fontSize: 11,
+    lineHeight: 16,
   },
 });

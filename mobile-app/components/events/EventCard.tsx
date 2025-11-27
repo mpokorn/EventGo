@@ -13,6 +13,8 @@ interface EventCardProps {
 export const EventCard: React.FC<EventCardProps> = ({ event, onPress }) => {
   const startDate = new Date(event.start_datetime);
   const isUpcoming = startDate > new Date();
+  const availableTickets = event.total_tickets - (event.tickets_sold || 0);
+  const isSoldOut = availableTickets <= 0;
 
   const formatDate = (date: Date) => {
     return date.toLocaleDateString('en-US', {
@@ -57,12 +59,16 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onPress }) => {
 
         <View style={styles.footer}>
           <View style={styles.ticketInfo}>
-            <Ionicons name="ticket-outline" size={16} color={colors.success} />
-            <Text style={styles.availableText}>
-              {event.available_tickets} / {event.total_tickets} available
+            <Ionicons 
+              name="ticket-outline" 
+              size={16} 
+              color={isSoldOut ? colors.error : colors.success} 
+            />
+            <Text style={[styles.availableText, isSoldOut && styles.soldOutTicketText]}>
+              {availableTickets} / {event.total_tickets} available
             </Text>
           </View>
-          {event.available_tickets === 0 && (
+          {isSoldOut && (
             <View style={styles.soldOutBadge}>
               <Text style={styles.soldOutText}>Sold Out</Text>
             </View>
@@ -107,7 +113,7 @@ const styles = StyleSheet.create({
   },
   infoText: {
     color: colors.textSecondary,
-    fontSize: 14,
+    fontSize: 13,
     marginLeft: spacing.sm,
     flex: 1,
   },
@@ -126,19 +132,22 @@ const styles = StyleSheet.create({
   },
   availableText: {
     color: colors.success,
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
     marginLeft: spacing.xs,
+  },
+  soldOutTicketText: {
+    color: colors.error,
   },
   soldOutBadge: {
     backgroundColor: colors.error,
     paddingHorizontal: spacing.sm,
     paddingVertical: 4,
-    borderRadius: 12,
+    borderRadius: 10,
   },
   soldOutText: {
     color: '#fff',
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '600',
   },
 });

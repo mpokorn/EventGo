@@ -1,12 +1,12 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Use the same base URL as your web app
-const BASE_URL = 'http://192.168.1.201:5000';
-
+// Load API URL from environment variables
+// In Expo, use EXPO_PUBLIC_ prefix for variables accessible in client code
+const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://193.2.177.22:5000';
 const api = axios.create({
   baseURL: BASE_URL,
-  timeout: 10000,
+  timeout: 30000, // Increased to 30 seconds for development
   headers: {
     'Content-Type': 'application/json',
   },

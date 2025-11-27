@@ -34,33 +34,33 @@ export const borderRadius = {
 
 export const typography = {
   h1: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: '700' as const,
-    lineHeight: 40,
+    lineHeight: 36,
   },
   h2: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '700' as const,
-    lineHeight: 32,
+    lineHeight: 30,
   },
   h3: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '600' as const,
-    lineHeight: 28,
+    lineHeight: 26,
   },
   body: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '400' as const,
-    lineHeight: 24,
+    lineHeight: 22,
   },
   small: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '400' as const,
-    lineHeight: 20,
+    lineHeight: 18,
   },
   tiny: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '400' as const,
-    lineHeight: 16,
+    lineHeight: 14,
   },
 };

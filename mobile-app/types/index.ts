@@ -15,7 +15,7 @@ export interface Event {
   start_datetime: string;
   end_datetime: string;
   total_tickets: number;
-  available_tickets: number;
+  tickets_sold: number;
   organizer_id: number;
   organizer_name?: string;
   image_url?: string;
@@ -42,33 +42,39 @@ export interface Ticket {
   issued_at: string;
   start_datetime?: string;
   end_datetime?: string;
-  title?: string;
+  event_name?: string;
   location?: string;
+  buyer_name?: string;
+  owner_id?: number;
+  owner_name?: string;
+  ticket_type_id?: number;
 }
 
 export interface Transaction {
   id: number;
-  user_id: number;
-  event_id: number;
-  amount: number;
-  transaction_type: 'purchase' | 'refund' | 'refund_fee';
-  status: 'completed' | 'pending' | 'failed';
+  buyer_id: number;
+  buyer_name: string;
+  total_price: number;
+  status: 'completed' | 'pending' | 'failed' | 'refunded';
+  payment_method: string;
+  reference_code?: string;
   created_at: string;
+  quantity: number;
   event_title?: string;
-  ticket_type_name?: string;
+  ticket_type?: string;
 }
 
 export interface WaitlistEntry {
   id: number;
   user_id: number;
   event_id: number;
-  ticket_type_id: number;
-  ticket_type_name?: string;
   position?: number;
-  status: 'waiting' | 'offered' | 'accepted' | 'expired';
-  created_at: string;
-  event_title?: string;
-  event_start?: string;
+  joined_at?: string;
+  event_name?: string;
+  start_datetime?: string;
+  end_datetime?: string;
+  user_name?: string;
+  user_email?: string;
 }
 
 export interface AuthResponse {

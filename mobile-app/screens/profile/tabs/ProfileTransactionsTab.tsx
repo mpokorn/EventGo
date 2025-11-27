@@ -7,86 +7,85 @@ import {
   RefreshControl,
   Alert,
 } from 'react-native';
+import { useAuth } from '../../../context/AuthContext';
 import { userService } from '../../../services/userService';
 import { Card } from '../../../components/ui/Card';
 import { LoadingSpinner } from '../../../components/ui/LoadingSpinner';
 import { Ionicons } from '@expo/vector-icons';
-import { Transaction } from '../../../types';
+import { Transaction, Ticket } from '../../../types';
 import { colors, spacing, typography } from '../../../constants/theme';
 
 function ProfileTransactionsTab() {
+  const { user } = useAuth();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const fetchTransactions = useCallback(async () => {
+  const fetchData = useCallback(async () => {
+    if (!user?.id) return;
     try {
-      const data = await userService.getTransactions();
-      setTransactions(data);
+      const [transactionsData, ticketsData] = await Promise.all([
+        userService.getTransactions(user.id),
+        userService.getTickets(user.id),
+      ]);
+      setTransactions(transactionsData);
+      setTickets(ticketsData);
     } catch (error: any) {
+      console.error('Error loading transactions:', error);
       Alert.alert('Error', error.message || 'Failed to load transactions');
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [user?.id]);
 
   useEffect(() => {
-    fetchTransactions();
-  }, [fetchTransactions]);
+    fetchData();
+  }, [fetchData]);
 
   const onRefresh = () => {
     setRefreshing(true);
-    fetchTransactions();
+    fetchData();
   };
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
-
-  const getTypeLabel = (type: string) => {
-    switch (type) {
-      case 'purchase':
-        return 'Purchase';
-      case 'refund':
-        return 'Refund';
-      case 'refund_fee':
-        return 'Refund Fee';
-      default:
-        return type;
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    } catch (error) {
+      return 'Invalid date';
     }
   };
 
-  const getTypeColor = (type: string) => {
-    switch (type) {
-      case 'purchase':
-        return colors.error;
-      case 'refund':
+  // Check if all tickets in a transaction are refunded
+  const areAllTicketsRefunded = (transactionId: number) => {
+    const txTickets = tickets.filter((t) => t.transaction_id === transactionId);
+    return txTickets.length > 0 && txTickets.every((t) => t.status === 'refunded');
+  };
+
+  const getStatusLabel = (status: string) => {
+    return status.charAt(0).toUpperCase() + status.slice(1);
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'completed':
         return colors.success;
-      case 'refund_fee':
+      case 'refunded':
         return colors.warning;
+      case 'pending':
+        return colors.primary;
+      case 'failed':
+        return colors.error;
       default:
         return colors.textSecondary;
-    }
-  };
-
-  const getTypeIcon = (type: string) => {
-    switch (type) {
-      case 'purchase':
-        return 'arrow-down-outline';
-      case 'refund':
-        return 'arrow-up-outline';
-      case 'refund_fee':
-        return 'alert-circle-outline';
-      default:
-        return 'swap-horizontal-outline';
     }
   };
 
@@ -106,47 +105,94 @@ function ProfileTransactionsTab() {
     );
   }
 
+  // Sort transactions by date (most recent first)
+  const sortedTransactions = [...transactions].sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
+
   return (
     <FlatList
-      data={transactions}
+      data={sortedTransactions}
       keyExtractor={(item) => item.id.toString()}
-      renderItem={({ item }) => (
-        <Card style={styles.card}>
-          <View style={styles.header}>
-            <View style={styles.iconContainer}>
-              <Ionicons
-                name={getTypeIcon(item.transaction_type) as any}
-                size={24}
-                color={getTypeColor(item.transaction_type)}
-              />
-            </View>
-            <View style={styles.info}>
-              <Text style={styles.eventTitle}>{item.event_title}</Text>
-              <Text style={styles.ticketType}>{item.ticket_type_name}</Text>
-            </View>
-            <View style={styles.amountContainer}>
-              <Text
-                style={[
-                  styles.amount,
-                  { color: getTypeColor(item.transaction_type) },
-                ]}
-              >
-                {item.transaction_type === 'purchase' ? '-' : '+'}€
-                {Math.abs(item.amount).toFixed(2)}
-              </Text>
-            </View>
-          </View>
+      renderItem={({ item }) => {
+        const isRefunded = areAllTicketsRefunded(item.id);
+        const displayStatus = isRefunded ? 'refunded' : item.status;
 
-          <View style={styles.footer}>
-            <View style={styles.typeBadge}>
-              <Text style={styles.typeBadgeText}>
-                {getTypeLabel(item.transaction_type)}
-              </Text>
+        return (
+          <Card style={styles.card}>
+            <View style={styles.header}>
+              <View style={styles.headerTop}>
+                <View style={styles.transactionIdContainer}>
+                  <Text style={styles.transactionId}>Transaction #{item.id}</Text>
+                  <View
+                    style={[
+                      styles.statusBadge,
+                      { backgroundColor: getStatusColor(displayStatus) + '20' },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.statusText,
+                        { color: getStatusColor(displayStatus) },
+                      ]}
+                    >
+                      {getStatusLabel(displayStatus)}
+                    </Text>
+                  </View>
+                </View>
+                <Text style={styles.amount}>€{parseFloat(item.total_price.toString()).toFixed(2)}</Text>
+              </View>
             </View>
-            <Text style={styles.date}>{formatDate(item.created_at)}</Text>
-          </View>
-        </Card>
-      )}
+
+            <View style={styles.details}>
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Event:</Text>
+                <Text style={styles.detailValue} numberOfLines={1}>
+                  {item.event_title || 'N/A'}
+                </Text>
+              </View>
+
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Ticket Type:</Text>
+                <Text style={styles.detailValue}>{item.ticket_type || 'N/A'}</Text>
+              </View>
+
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Quantity:</Text>
+                <Text style={styles.detailValue}>{item.quantity || 1}</Text>
+              </View>
+
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Payment:</Text>
+                <Text style={styles.detailValue}>
+                  {item.payment_method?.toUpperCase() || 'N/A'}
+                </Text>
+              </View>
+
+              {item.reference_code && (
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Reference:</Text>
+                  <Text style={styles.detailValue}>{item.reference_code}</Text>
+                </View>
+              )}
+
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Date:</Text>
+                <Text style={styles.detailValue}>{formatDate(item.created_at)}</Text>
+              </View>
+
+              {isRefunded && (
+                <View style={styles.refundNotice}>
+                  <Ionicons name="checkmark-circle" size={16} color={colors.success} />
+                  <Text style={styles.refundNoticeText}>
+                    Tickets refunded - purchased by someone on the waitlist
+                  </Text>
+                </View>
+              )}
+            </View>
+          </Card>
+        );
+      }}
       contentContainerStyle={styles.list}
       refreshControl={
         <RefreshControl
@@ -165,60 +211,77 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   card: {
-    gap: spacing.md,
+    padding: spacing.md,
   },
   header: {
+    marginBottom: spacing.md,
+  },
+  headerTop: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
   },
-  iconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.cardBg,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  info: {
+  transactionIdContainer: {
     flex: 1,
+    gap: spacing.xs,
   },
-  eventTitle: {
+  transactionId: {
     color: colors.text,
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: spacing.xs / 2,
-  },
-  ticketType: {
-    color: colors.textSecondary,
-    fontSize: 14,
-  },
-  amountContainer: {
-    alignItems: 'flex-end',
-  },
-  amount: {
-    fontSize: 18,
+    fontSize: typography.body.fontSize,
     fontWeight: '700',
   },
-  footer: {
+  statusBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs / 2,
+    borderRadius: 12,
+  },
+  statusText: {
+    fontSize: typography.small.fontSize,
+    fontWeight: '600',
+    textTransform: 'capitalize',
+  },
+  amount: {
+    color: colors.text,
+    fontSize: 20,
+    fontWeight: '700',
+    marginLeft: spacing.sm,
+  },
+  details: {
+    gap: spacing.sm,
+  },
+  detailRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  typeBadge: {
-    backgroundColor: colors.primary + '20',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs / 2,
-    borderRadius: 12,
-  },
-  typeBadgeText: {
-    color: colors.primary,
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  date: {
+  detailLabel: {
     color: colors.textSecondary,
-    fontSize: 12,
+    fontSize: typography.small.fontSize,
+    fontWeight: '500',
+    flex: 0.4,
+  },
+  detailValue: {
+    color: colors.text,
+    fontSize: typography.small.fontSize,
+    flex: 0.6,
+    textAlign: 'right',
+  },
+  refundNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginTop: spacing.xs,
+    padding: spacing.sm,
+    backgroundColor: colors.success + '10',
+    borderRadius: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.success,
+  },
+  refundNoticeText: {
+    color: colors.success,
+    fontSize: typography.small.fontSize,
+    flex: 1,
   },
   emptyContainer: {
     flex: 1,

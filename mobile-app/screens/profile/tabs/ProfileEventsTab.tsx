@@ -6,30 +6,52 @@ import {
   FlatList,
   RefreshControl,
   Alert,
+  TouchableOpacity,
 } from 'react-native';
+import { useAuth } from '../../../context/AuthContext';
 import { userService } from '../../../services/userService';
 import { EventCard } from '../../../components/events/EventCard';
 import { LoadingSpinner } from '../../../components/ui/LoadingSpinner';
 import { Ionicons } from '@expo/vector-icons';
 import { Event } from '../../../types';
 import { colors, spacing, typography } from '../../../constants/theme';
+import { useRouter } from 'expo-router';
+import EventTicketsScreen from './EventTicketsScreen';
 
-function ProfileEventsTab({ navigation }: any) {
+function ProfileEventsTab() {
+  const { user } = useAuth();
+  const router = useRouter();
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [selectedEventId, setSelectedEventId] = useState<number | null>(null);
 
   const fetchEvents = useCallback(async () => {
+    if (!user?.id) return;
     try {
-      const data = await userService.getUserEvents();
-      setEvents(data);
+      // Get user's tickets first
+      const tickets = await userService.getTickets(user.id);
+      
+      // Extract unique event IDs from tickets
+      const eventIds = [...new Set(tickets.map(t => t.event_id).filter(Boolean))];
+      
+      if (eventIds.length > 0) {
+        // Fetch each event
+        const eventService = await import('../../../services/eventService');
+        const eventPromises = eventIds.map(id => eventService.eventService.getEvent(id));
+        const fetchedEvents = await Promise.all(eventPromises);
+        setEvents(fetchedEvents.filter(Boolean));
+      } else {
+        setEvents([]);
+      }
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to load events');
+      console.error('Error loading events:', error);
+      Alert.alert('Error', error.response?.data?.message || 'Failed to load events');
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [user?.id]);
 
   useEffect(() => {
     fetchEvents();
@@ -41,8 +63,26 @@ function ProfileEventsTab({ navigation }: any) {
   };
 
   const handleEventPress = (eventId: number) => {
-    navigation.navigate('EventDetail', { eventId });
+    router.push(`/event/${eventId}` as any);
   };
+
+  const handleViewTickets = (eventId: number) => {
+    setSelectedEventId(eventId);
+  };
+
+  const handleBackToEvents = () => {
+    setSelectedEventId(null);
+  };
+
+  // If an event is selected, show EventTicketsScreen
+  if (selectedEventId) {
+    return (
+      <EventTicketsScreen
+        eventId={selectedEventId}
+        onBack={handleBackToEvents}
+      />
+    );
+  }
 
   if (loading) {
     return <LoadingSpinner fullScreen />;
@@ -65,7 +105,17 @@ function ProfileEventsTab({ navigation }: any) {
       data={events}
       keyExtractor={(item) => item.id.toString()}
       renderItem={({ item }) => (
-        <EventCard event={item} onPress={() => handleEventPress(item.id)} />
+        <View style={styles.eventContainer}>
+          <EventCard event={item} onPress={() => handleEventPress(item.id)} />
+          <TouchableOpacity 
+            style={styles.viewTicketsButton}
+            onPress={() => handleViewTickets(item.id)}
+          >
+            <Ionicons name="ticket" size={16} color={colors.primary} />
+            <Text style={styles.viewTicketsText}>View Tickets</Text>
+            <Ionicons name="chevron-forward" size={16} color={colors.primary} />
+          </TouchableOpacity>
+        </View>
       )}
       contentContainerStyle={styles.list}
       refreshControl={
@@ -99,6 +149,27 @@ const styles = StyleSheet.create({
   emptySubtext: {
     color: colors.textSecondary,
     textAlign: 'center',
+  },
+  eventContainer: {
+    marginBottom: spacing.md,
+  },
+  viewTicketsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    backgroundColor: colors.cardBg,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    marginTop: spacing.sm,
+  },
+  viewTicketsText: {
+    fontSize: typography.small.fontSize,
+    fontWeight: '600',
+    color: colors.primary,
   },
 });
 
