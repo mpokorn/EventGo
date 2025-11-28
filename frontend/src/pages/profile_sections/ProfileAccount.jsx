@@ -55,8 +55,25 @@ export default function ProfileAccount({ profileData, handleChange, handleSave, 
         </div>
 
         <div className="form-row">
+          <label>Current Password (required to change password)</label>
+          <input 
+            name="oldPassword" 
+            type="password" 
+            value={profileData.oldPassword || ''} 
+            onChange={handleChange}
+            placeholder="Enter current password to change it"
+          />
+        </div>
+
+        <div className="form-row">
           <label>New Password (optional)</label>
-          <input name="password" type="password" value={profileData.password} onChange={handleChange} />
+          <input 
+            name="password" 
+            type="password" 
+            value={profileData.password} 
+            onChange={handleChange}
+            placeholder="Leave blank to keep current password"
+          />
         </div>
 
         {error && <div className="profile-error">{error}</div>}

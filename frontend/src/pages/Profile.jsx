@@ -37,6 +37,7 @@ export default function Profile() {
     first_name: user?.first_name || "",
     last_name: user?.last_name || "",
     email: user?.email || "",
+    oldPassword: "",
     password: ""
   });
 
@@ -57,6 +58,7 @@ export default function Profile() {
         first_name: user.first_name || "",
         last_name: user.last_name || "",
         email: user.email || "",
+        oldPassword: "",
         password: ""
       });
     }
@@ -126,16 +128,31 @@ export default function Profile() {
 
   const handleSave = async (e) => {
     e.preventDefault();
+    setError("");
+    setSuccess("");
+
+    // Validate password change logic
+    if (profileData.password && !profileData.oldPassword) {
+      setError("Please enter your current password to change it.");
+      return;
+    }
+
     setSaving(true);
 
     try {
       const payload = { ...profileData };
-      if (!payload.password) delete payload.password;
+      if (!payload.password) {
+        delete payload.password;
+        delete payload.oldPassword;
+      }
 
       await api.put(`/users/${user.id}`, payload);
       setSuccess("Profile updated!");
+      
+      // Clear password fields after successful update
+      setProfileData(prev => ({ ...prev, oldPassword: "", password: "" }));
     } catch (err) {
-      setError("Failed to update profile.");
+      setError(err.response?.data?.message || "Failed to update profile.");
     } finally {
       setSaving(false);
     }

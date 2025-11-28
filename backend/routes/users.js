@@ -475,7 +475,7 @@ router.post("/refresh-token", async (req, res, next) => {
 -------------------------------------- */
 router.put("/:id", requireAuth, validateId('id'), sanitizeBody, async (req, res, next) => {
   const id = req.params.id; // Already validated and converted to number
-  const { first_name, last_name, email, password } = req.body;
+  const { first_name, last_name, email, password, oldPassword } = req.body;
 
   // Verify user is updating their own account
   if (req.user.id !== id) {
@@ -488,10 +488,22 @@ router.put("/:id", requireAuth, validateId('id'), sanitizeBody, async (req, res,
   }
 
   try {
-    // Check user exists
-    const userCheck = await pool.query("SELECT id, email FROM users WHERE id = $1", [id]);
+    // Check user exists and get password for verification if needed
+    const userCheck = await pool.query("SELECT id, email, password FROM users WHERE id = $1", [id]);
     if (userCheck.rows.length === 0) {
       return res.status(404).json({ message: "User not found!" });
+    }
+
+    // If user wants to change password, verify old password first
+    if (password !== undefined && password.trim() !== '') {
+      if (!oldPassword) {
+        return res.status(400).json({ message: "Current password is required to set a new password!" });
+      }
+      
+      const isValidOldPassword = await comparePassword(oldPassword, userCheck.rows[0].password);
+      if (!isValidOldPassword) {
+        return res.status(401).json({ message: "Current password is incorrect!" });
+      }
     }
 
     // Build dynamic update query
