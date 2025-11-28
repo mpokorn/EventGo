@@ -4,6 +4,89 @@ import pool from "../db.js";
 const router = express.Router();
 
 /* --------------------------------------
+  Helper: Cleanup expired reservations and reassign to waitlist
+-------------------------------------- */
+export async function cleanupExpiredReservations() {
+  const client = await pool.connect();
+  
+  try {
+    // Find all expired reservations from waitlist (30 minutes after offered_at)
+    const expiredResult = await client.query(
+      `SELECT t.id, t.event_id, t.ticket_type_id, t.user_id, t.transaction_id, w.id as waitlist_id
+       FROM tickets t
+       JOIN transactions tx ON t.transaction_id = tx.id
+       LEFT JOIN waitlist w ON w.user_id = t.user_id AND w.event_id = t.event_id
+       WHERE t.status = 'reserved' 
+       AND tx.status = 'pending'
+       AND w.reservation_expires_at IS NOT NULL
+       AND w.reservation_expires_at < NOW()
+       FOR UPDATE OF t SKIP LOCKED;`
+    );
+
+    if (expiredResult.rows.length === 0) {
+      return { cleaned: 0 };
+    }
+
+    console.log(`🧹 Found ${expiredResult.rows.length} expired reservations to cleanup`);
+
+    for (const expiredTicket of expiredResult.rows) {
+      await client.query('BEGIN');
+      
+      try {
+        // Cancel the transaction
+        await client.query(
+          `UPDATE transactions SET status = 'expired' WHERE id = $1;`,
+          [expiredTicket.transaction_id]
+        );
+
+        // Delete the expired reserved ticket
+        await client.query(
+          `DELETE FROM tickets WHERE id = $1;`,
+          [expiredTicket.id]
+        );
+
+        // Remove from waitlist (their reservation expired)
+        if (expiredTicket.waitlist_id) {
+          await client.query(
+            `DELETE FROM waitlist WHERE id = $1;`,
+            [expiredTicket.waitlist_id]
+          );
+        }
+
+        console.log(`⏰ Expired reservation for user ${expiredTicket.user_id}, offering to next in waitlist...`);
+
+        // Try to assign to next person in waitlist
+        const nextAssignment = await assignTicketToWaitlist(expiredTicket.event_id, expiredTicket.ticket_type_id);
+        
+        if (nextAssignment.assigned) {
+          console.log(`✅ Ticket assigned to user ${nextAssignment.user_id}`);
+        }
+
+        await client.query('COMMIT');
+      } catch (error) {
+        await client.query('ROLLBACK');
+        console.error(`❌ Error cleaning up expired reservation ${expiredTicket.id}:`, error);
+      }
+    }
+
+    return { cleaned: expiredResult.rows.length };
+
+  } catch (error) {
+    console.error("❌ Error in cleanupExpiredReservations:", error);
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+// Run cleanup every 2 minutes
+setInterval(() => {
+  cleanupExpiredReservations().catch(err => {
+    console.error("❌ Error in scheduled reservation cleanup:", err);
+  });
+}, 2 * 60 * 1000); // 2 minutes
+
+/* --------------------------------------
   Get all waitlist entries (optional filters)
 -------------------------------------- */
 router.get("/", async (req, res, next) => {
@@ -347,10 +430,11 @@ export async function assignTicketToWaitlist(event_id, ticket_type_id) {
   try {
     await client.query('BEGIN');
     
-    // Find first person in waitlist with row-level locking to prevent race conditions
+    // Find first person in waitlist who hasn't been offered yet (offered_at IS NULL)
     const waitlistResult = await client.query(
       `SELECT * FROM waitlist 
        WHERE event_id = $1 
+       AND offered_at IS NULL
        ORDER BY joined_at ASC 
        LIMIT 1
        FOR UPDATE SKIP LOCKED;`,
@@ -371,6 +455,16 @@ export async function assignTicketToWaitlist(event_id, ticket_type_id) {
     );
     const price = ticketTypeResult.rows[0]?.price || 0;
 
+    // Update waitlist entry with offer times (DON'T delete yet - track expiration here)
+    const waitlistUpdate = await client.query(
+      `UPDATE waitlist 
+       SET offered_at = NOW(), 
+           reservation_expires_at = NOW() + INTERVAL '30 minutes'
+       WHERE id = $1
+       RETURNING offered_at, reservation_expires_at;`,
+      [waitlistUser.id]
+    );
+
     // Create PENDING transaction for the waitlist user (they must accept)
     const txResult = await client.query(
       `INSERT INTO transactions (user_id, total_price, status, payment_method)
@@ -379,6 +473,8 @@ export async function assignTicketToWaitlist(event_id, ticket_type_id) {
       [waitlistUser.user_id, price]
     );
     const transaction_id = txResult.rows[0].id;
+    
+    console.log(`🎫 Created transaction ${transaction_id} for user ${waitlistUser.user_id}. Offered at: ${waitlistUpdate.rows[0].offered_at}, Expires at: ${waitlistUpdate.rows[0].reservation_expires_at}`);
 
     // Ticket status lifecycle:
     //   'reserved' - Ticket is held for a user promoted from the waitlist; user must accept and complete payment to activate.
@@ -386,18 +482,14 @@ export async function assignTicketToWaitlist(event_id, ticket_type_id) {
     //   'refunded' - Ticket has been refunded and is no longer valid.
     //
     // Here, we create a ticket with 'reserved' status for the waitlist user. The ticket will become 'active' once the user accepts and completes payment.
+    // Reservation expires in 30 minutes from issued_at (calculated on-the-fly)
     await client.query(
       `INSERT INTO tickets (transaction_id, ticket_type_id, event_id, user_id, status)
        VALUES ($1, $2, $3, $4, 'reserved');`,
       [transaction_id, ticket_type_id, event_id, waitlistUser.user_id]
     );
 
-    // Remove from waitlist (they now have a reserved ticket)
-    await client.query(
-      `DELETE FROM waitlist WHERE id = $1;`,
-      [waitlistUser.id]
-    );
-
+    // Keep waitlist entry with expiration tracking - will be removed on accept/decline
     // Don't increment tickets_sold yet - only when they accept!
 
     await client.query('COMMIT');
@@ -438,9 +530,10 @@ router.post("/accept-ticket/:transaction_id", async (req, res, next) => {
       return res.status(404).json({ message: "Reservation not found or already confirmed!" });
     }
 
-    // Get ticket info
+    // Get ticket info and check expiration
     const ticketResult = await pool.query(
-      `SELECT * FROM tickets WHERE transaction_id = $1 AND status = 'reserved';`,
+      `SELECT * FROM tickets 
+       WHERE transaction_id = $1 AND status = 'reserved';`,
       [transaction_id]
     );
 
@@ -449,6 +542,44 @@ router.post("/accept-ticket/:transaction_id", async (req, res, next) => {
     }
 
     const ticket = ticketResult.rows[0];
+    const transaction = txResult.rows[0];
+
+    // Check waitlist entry for expiration
+    const waitlistCheck = await pool.query(
+      `SELECT * FROM waitlist WHERE user_id = $1 AND event_id = $2;`,
+      [transaction.user_id, ticket.event_id]
+    );
+
+    if (waitlistCheck.rows.length === 0) {
+      return res.status(404).json({ message: "Waitlist entry not found!" });
+    }
+
+    const waitlistEntry = waitlistCheck.rows[0];
+    const now = new Date();
+    const expiresAt = new Date(waitlistEntry.reservation_expires_at);
+    const offeredAt = new Date(waitlistEntry.offered_at);
+    
+    console.log('🕐 Reservation check:', {
+      transaction_id,
+      offered_at: offeredAt.toISOString(),
+      current_time: now.toISOString(),
+      expires_at: expiresAt.toISOString(),
+      is_expired: expiresAt < now,
+      minutes_remaining: Math.floor((expiresAt - now) / (60 * 1000))
+    });
+    
+    if (expiresAt < now) {
+      // Reservation expired - clean it up and return error
+      await pool.query(`UPDATE transactions SET status = 'expired' WHERE id = $1;`, [transaction_id]);
+      await pool.query(`DELETE FROM tickets WHERE id = $1;`, [ticket.id]);
+      
+      // Try to assign to next person
+      await assignTicketToWaitlist(ticket.event_id, ticket.ticket_type_id);
+      
+      return res.status(410).json({ 
+        message: "This reservation has expired (30 minutes limit). The ticket has been offered to the next person in the waitlist." 
+      });
+    }
 
     // Find the original ticket that's pending return for the same event and ticket type
     const pendingReturnTicket = await pool.query(
@@ -506,6 +637,12 @@ router.post("/accept-ticket/:transaction_id", async (req, res, next) => {
     // Decrement tickets_sold by 1 (removing pending_return ticket) then increment by 1 (adding new active ticket)
     // Net effect: tickets_sold stays the same, just ownership changes
     // So we don't need to update tickets_sold count
+
+    // Remove from waitlist after successful acceptance
+    await pool.query(
+      `DELETE FROM waitlist WHERE user_id = $1 AND event_id = $2;`,
+      [transaction.user_id, ticket.event_id]
+    );
 
     return res.status(200).json({
       message: refundAmount > 0 
@@ -566,6 +703,12 @@ router.post("/decline-ticket/:transaction_id", async (req, res, next) => {
     await pool.query(
       `DELETE FROM tickets WHERE id = $1;`,
       [ticket.id]
+    );
+
+    // Remove from waitlist after decline
+    await pool.query(
+      `DELETE FROM waitlist WHERE user_id = $1 AND event_id = $2;`,
+      [transaction.user_id, ticket.event_id]
     );
 
     // Assign to next person in waitlist

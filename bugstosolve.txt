@@ -1,0 +1,2 @@
+organizer should have an option to refund all tickets no matter if the event is sold out or not
+wailist ima 10001 bug

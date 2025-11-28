@@ -10,10 +10,9 @@ import {
 } from 'react-native';
 import { useAuth } from '../../../context/AuthContext';
 import { userService } from '../../../services/userService';
-import { eventService } from '../../../services/eventService';
 import { TicketCard } from '../../../components/tickets/TicketCard';
 import { LoadingSpinner } from '../../../components/ui/LoadingSpinner';
-import { Ticket, Event } from '../../../types';
+import { Ticket } from '../../../types';
 import { colors, spacing, typography } from '../../../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -26,23 +25,14 @@ interface TicketSection {
 function ProfileTicketsTab() {
   const { user } = useAuth();
   const [tickets, setTickets] = useState<Ticket[]>([]);
-  const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const fetchTicketsAndEvents = useCallback(async () => {
+  const fetchTickets = useCallback(async () => {
     if (!user?.id) return;
     try {
       const ticketsData = await userService.getTickets(user.id);
       setTickets(ticketsData);
-
-      // Fetch events for sold-out check
-      const eventIds = [...new Set(ticketsData.map(t => t.event_id).filter(Boolean))];
-      if (eventIds.length > 0) {
-        const eventPromises = eventIds.map(id => eventService.getEvent(id));
-        const eventsData = await Promise.all(eventPromises);
-        setEvents(eventsData.filter(Boolean));
-      }
     } catch (error: any) {
       console.error('Error loading tickets:', error);
       Alert.alert('Error', error.response?.data?.message || 'Failed to load tickets');
@@ -53,19 +43,18 @@ function ProfileTicketsTab() {
   }, [user?.id]);
 
   useEffect(() => {
-    fetchTicketsAndEvents();
-  }, [fetchTicketsAndEvents]);
+    fetchTickets();
+  }, [fetchTickets]);
 
   const onRefresh = () => {
     setRefreshing(true);
-    fetchTicketsAndEvents();
+    fetchTickets();
   };
 
-  // Check if event is sold out
-  const isEventSoldOut = (eventId: number) => {
-    const event = events.find(e => e.id === eventId);
-    if (!event) return false;
-    return event.tickets_sold >= event.total_tickets;
+  // Check if event is sold out using ticket data
+  const isEventSoldOut = (ticket: Ticket) => {
+    if (!ticket.event_total_tickets || !ticket.event_tickets_sold) return false;
+    return ticket.event_tickets_sold >= ticket.event_total_tickets;
   };
 
   const handleAccept = async (ticket: Ticket) => {
@@ -80,7 +69,7 @@ function ProfileTicketsTab() {
             try {
               const result = await userService.acceptTicket(ticket.transaction_id);
               Alert.alert('Success', result.message || 'Ticket accepted successfully');
-              fetchTicketsAndEvents();
+              fetchTickets();
             } catch (error: any) {
               Alert.alert('Error', error.response?.data?.message || 'Failed to accept ticket');
             }
@@ -103,7 +92,7 @@ function ProfileTicketsTab() {
             try {
               const result = await userService.declineTicket(ticket.transaction_id);
               Alert.alert('Success', result.message || 'Ticket declined');
-              fetchTicketsAndEvents();
+              fetchTickets();
             } catch (error: any) {
               Alert.alert('Error', error.response?.data?.message || 'Failed to decline ticket');
             }
@@ -113,8 +102,8 @@ function ProfileTicketsTab() {
     );
   };
 
-  const handleRefund = async (ticketId: number, eventId: number) => {
-    const soldOut = isEventSoldOut(eventId);
+  const handleRefund = async (ticket: Ticket) => {
+    const soldOut = isEventSoldOut(ticket);
     
     if (!soldOut) {
       Alert.alert(
@@ -134,13 +123,13 @@ function ProfileTicketsTab() {
           style: 'destructive',
           onPress: async () => {
             try {
-              const result = await userService.refundTicket(ticketId);
+              const result = await userService.refundTicket(ticket.id);
               
               // Show success message from backend
               Alert.alert('Success', result.message || 'Ticket return requested');
               
-              // Refresh tickets and events (also refreshes waitlist status)
-              fetchTicketsAndEvents();
+              // Refresh tickets
+              fetchTickets();
             } catch (error: any) {
               Alert.alert('Error', error.response?.data?.message || 'Failed to return ticket');
             }
@@ -182,7 +171,7 @@ function ProfileTicketsTab() {
   });
 
   // Check if user has any eligible tickets for return
-  const hasEligibleTickets = activeTickets.some(t => isEventSoldOut(t.event_id));
+  const hasEligibleTickets = activeTickets.some(t => isEventSoldOut(t));
 
   // Build sections array
   const sections: TicketSection[] = [];
@@ -287,7 +276,7 @@ function ProfileTicketsTab() {
           )}
 
           {section.data.map(ticket => {
-            const soldOut = isEventSoldOut(ticket.event_id);
+            const soldOut = isEventSoldOut(ticket);
             
             return (
               <View key={ticket.id} style={styles.ticketContainer}>
@@ -295,7 +284,7 @@ function ProfileTicketsTab() {
                   ticket={ticket}
                   onAccept={section.type === 'reserved' ? () => handleAccept(ticket) : undefined}
                   onDecline={section.type === 'reserved' ? () => handleDecline(ticket) : undefined}
-                  onRefund={section.type === 'active' && soldOut ? () => handleRefund(ticket.id, ticket.event_id) : undefined}
+                  onRefund={section.type === 'active' && soldOut ? () => handleRefund(ticket) : undefined}
                 />
                 
                 {section.type === 'active' && !soldOut && (

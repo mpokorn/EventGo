@@ -21,8 +21,6 @@ router.get("/", async (req, res, next) => {
         t.id,
         t.user_id,
         (u.first_name || ' ' || u.last_name) AS buyer_name,
-        t.owner_id,
-        (o.first_name || ' ' || o.last_name) AS owner_name,
         t.event_id,
         e.title AS event_name,
         t.ticket_type_id,
@@ -33,7 +31,6 @@ router.get("/", async (req, res, next) => {
         t.issued_at
       FROM tickets t
       JOIN users u ON t.user_id = u.id
-      LEFT JOIN users o ON t.owner_id = o.id
       JOIN events e ON t.event_id = e.id
       LEFT JOIN ticket_types tt ON t.ticket_type_id = tt.id
       ORDER BY t.issued_at DESC;
@@ -70,8 +67,6 @@ router.get("/:id", validateId('id'), async (req, res, next) => {
         t.id,
         t.user_id,
         (u.first_name || ' ' || u.last_name) AS buyer_name,
-        t.owner_id,
-        (o.first_name || ' ' || o.last_name) AS owner_name,
         t.event_id,
         e.title AS event_name,
         t.ticket_type_id,
@@ -82,7 +77,6 @@ router.get("/:id", validateId('id'), async (req, res, next) => {
         t.issued_at
       FROM tickets t
       JOIN users u ON t.user_id = u.id
-      LEFT JOIN users o ON t.owner_id = o.id
       JOIN events e ON t.event_id = e.id
       LEFT JOIN ticket_types tt ON t.ticket_type_id = tt.id
       WHERE t.id = $1;
@@ -125,24 +119,28 @@ router.get("/user/:user_id", validateId('user_id'), async (req, res, next) => {
         t.id,
         t.user_id,
         (u.first_name || ' ' || u.last_name) AS buyer_name,
-        t.owner_id,
-        (o.first_name || ' ' || o.last_name) AS owner_name,
         t.event_id,
         e.title AS event_name,
+        e.location,
         e.start_datetime,
         e.end_datetime,
+        e.total_tickets AS event_total_tickets,
+        e.tickets_sold AS event_tickets_sold,
         t.ticket_type_id,
         tt.type AS ticket_type,
         tt.price AS ticket_price,
         t.transaction_id,
         t.status,
-        t.issued_at
+        t.issued_at,
+        CASE 
+          WHEN t.status = 'reserved' THEN t.issued_at + INTERVAL '30 minutes'
+          ELSE NULL 
+        END as reservation_expires_at
       FROM tickets t
       JOIN users u ON t.user_id = u.id
-      LEFT JOIN users o ON t.owner_id = o.id
       JOIN events e ON t.event_id = e.id
       LEFT JOIN ticket_types tt ON t.ticket_type_id = tt.id
-      WHERE t.user_id = $1 OR t.owner_id = $1
+      WHERE t.user_id = $1
       ORDER BY t.issued_at DESC;
       `,
       [user_id]
@@ -248,8 +246,6 @@ router.get("/event/:event_id", validateId('event_id'), async (req, res, next) =>
         t.id,
         t.user_id,
         (u.first_name || ' ' || u.last_name) AS buyer_name,
-        t.owner_id,
-        (o.first_name || ' ' || o.last_name) AS owner_name,
         t.ticket_type_id,
         tt.type AS ticket_type,
         tt.price AS ticket_price,
@@ -257,7 +253,6 @@ router.get("/event/:event_id", validateId('event_id'), async (req, res, next) =>
         t.issued_at
       FROM tickets t
       JOIN users u ON t.user_id = u.id
-      LEFT JOIN users o ON t.owner_id = o.id
       LEFT JOIN ticket_types tt ON t.ticket_type_id = tt.id
       WHERE t.event_id = $1
       ORDER BY t.issued_at DESC;
@@ -476,58 +471,6 @@ router.put("/:id/refund", validateId('id'), async (req, res, next) => {
     });
   } catch (err) {
     console.error(" Error in PUT /tickets/:id/refund:", err);
-    next(err);
-  }
-});
-
-/* --------------------------------------
-    Resell/Transfer ticket to another user
--------------------------------------- */
-router.put("/:id/resell", validateId('id'), async (req, res, next) => {
-  const id = req.params.id; // Already validated
-  const { new_owner_id } = req.body;
-  const current_user_id = req.user.id;
-
-  // Validate new_owner_id
-  const ownerIdValidation = validateNumber(new_owner_id, 'New owner ID', 1, 2147483647);
-  if (!ownerIdValidation.valid) {
-    return res.status(400).json({ message: ownerIdValidation.message });
-  }
-
-  try {
-    // Check if ticket exists and belongs to current user
-    const ticketCheck = await pool.query(
-      `SELECT * FROM tickets WHERE id = $1 AND (user_id = $2 OR owner_id = $2) AND status = 'active';`,
-      [id, current_user_id]
-    );
-
-    if (ticketCheck.rows.length === 0) {
-      return res.status(404).json({ 
-        message: "Ticket not found or you don't have permission to transfer!" 
-      });
-    }
-
-    // Check if new owner exists
-    const userCheck = await pool.query(`SELECT id FROM users WHERE id = $1;`, [new_owner_id]);
-    if (userCheck.rows.length === 0) {
-      return res.status(404).json({ message: "New owner does not exist!" });
-    }
-
-    // Transfer ticket
-    const result = await pool.query(
-      `UPDATE tickets 
-       SET owner_id = $1 
-       WHERE id = $2 
-       RETURNING *;`,
-      [new_owner_id, id]
-    );
-
-    res.status(200).json({
-      message: "Ticket successfully transferred!",
-      ticket: result.rows[0],
-    });
-  } catch (err) {
-    console.error(" Error in PUT /tickets/:id/resell:", err);
     next(err);
   }
 });

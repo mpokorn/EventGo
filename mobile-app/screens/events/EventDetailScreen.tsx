@@ -32,6 +32,7 @@ export default function EventDetailScreen() {
   const [selectedTicketType, setSelectedTicketType] = useState<TicketType | null>(
     null
   );
+  const [quantity, setQuantity] = useState(1);
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
 
   useEffect(() => {
@@ -64,15 +65,16 @@ export default function EventDetailScreen() {
       await eventService.purchaseTicket({
         event_id: eventId,
         ticket_type_id: selectedTicketType.id,
-        quantity: 1,
+        quantity: quantity,
         payment_method: 'card',
       });
 
-      Alert.alert('Success', 'Ticket purchased successfully!', [
+      const ticketText = quantity === 1 ? 'Ticket' : 'Tickets';
+      Alert.alert('Success', `${quantity} ${ticketText} purchased successfully!`, [
         { text: 'OK', onPress: () => {
           setShowPurchaseModal(false);
+          setQuantity(1);
           loadEventDetails();
-          router.push('/(tabs)/profile');
         }},
       ]);
     } catch (err: any) {
@@ -137,6 +139,7 @@ export default function EventDetailScreen() {
     }
 
     setSelectedTicketType(ticketType);
+    setQuantity(1);
     setShowPurchaseModal(true);
   };
 
@@ -273,7 +276,10 @@ export default function EventDetailScreen() {
 
       <Modal
         visible={showPurchaseModal}
-        onClose={() => setShowPurchaseModal(false)}
+        onClose={() => {
+          setShowPurchaseModal(false);
+          setQuantity(1);
+        }}
         title="Confirm Purchase"
         type="confirm"
         onConfirm={handlePurchase}
@@ -289,8 +295,45 @@ export default function EventDetailScreen() {
               {selectedTicketType.type}
             </Text>
             <Text style={styles.modalPrice}>
-              Price: €{selectedTicketType.price}
+              €{selectedTicketType.price} per ticket
             </Text>
+            
+            <View style={styles.quantityContainer}>
+              <Text style={styles.quantityLabel}>Quantity:</Text>
+              <View style={styles.quantitySelector}>
+                <TouchableOpacity
+                  style={styles.quantityButton}
+                  onPress={() => setQuantity(Math.max(1, quantity - 1))}
+                  disabled={quantity <= 1}
+                >
+                  <Ionicons 
+                    name="remove" 
+                    size={20} 
+                    color={quantity <= 1 ? colors.textSecondary : colors.primary} 
+                  />
+                </TouchableOpacity>
+                <Text style={styles.quantityValue}>{quantity}</Text>
+                <TouchableOpacity
+                  style={styles.quantityButton}
+                  onPress={() => {
+                    const maxAvailable = selectedTicketType.total_tickets - (selectedTicketType.tickets_sold || 0);
+                    setQuantity(Math.min(maxAvailable, quantity + 1));
+                  }}
+                  disabled={quantity >= (selectedTicketType.total_tickets - (selectedTicketType.tickets_sold || 0))}
+                >
+                  <Ionicons 
+                    name="add" 
+                    size={20} 
+                    color={quantity >= (selectedTicketType.total_tickets - (selectedTicketType.tickets_sold || 0)) ? colors.textSecondary : colors.primary}
+                  />
+                </TouchableOpacity>
+              </View>
+            </View>
+            
+            <View style={styles.totalContainer}>
+              <Text style={styles.totalLabel}>Total:</Text>
+              <Text style={styles.totalPrice}>€{(selectedTicketType.price * quantity).toFixed(2)}</Text>
+            </View>
           </View>
         )}
       </Modal>
@@ -427,5 +470,58 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontSize: 17,
     fontWeight: '600',
+    marginBottom: spacing.md,
+  },
+  quantityContainer: {
+    marginTop: spacing.md,
+    marginBottom: spacing.md,
+  },
+  quantityLabel: {
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: '600',
+    marginBottom: spacing.xs,
+  },
+  quantitySelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.md,
+  },
+  quantityButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.inputBg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.inputBorder,
+  },
+  quantityValue: {
+    color: colors.text,
+    fontSize: 20,
+    fontWeight: '700',
+    minWidth: 40,
+    textAlign: 'center',
+  },
+  totalContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: spacing.md,
+    paddingTop: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.cardBorder,
+  },
+  totalLabel: {
+    color: colors.text,
+    fontSize: 17,
+    fontWeight: '600',
+  },
+  totalPrice: {
+    color: colors.primary,
+    fontSize: 22,
+    fontWeight: '700',
   },
 });

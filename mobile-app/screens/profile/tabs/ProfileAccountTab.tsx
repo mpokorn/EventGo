@@ -23,8 +23,8 @@ function ProfileAccountTab() {
     first_name: '',
     last_name: '',
     email: '',
+    oldPassword: '',
     password: '',
-    confirmPassword: '',
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -34,8 +34,8 @@ function ProfileAccountTab() {
         first_name: user.first_name || '',
         last_name: user.last_name || '',
         email: user.email || '',
+        oldPassword: '',
         password: '',
-        confirmPassword: '',
       });
     }
   }, [user]);
@@ -57,6 +57,10 @@ function ProfileAccountTab() {
     }
 
     if (formData.password) {
+      if (!formData.oldPassword) {
+        newErrors.oldPassword = 'Current password is required to change password';
+      }
+
       if (formData.password.length < 8) {
         newErrors.password = 'Password must be at least 8 characters';
       } else if (!/(?=.*[a-z])/.test(formData.password)) {
@@ -67,10 +71,6 @@ function ProfileAccountTab() {
         newErrors.password = 'Password must contain a number';
       } else if (!/(?=.*[@$!%*?&])/.test(formData.password)) {
         newErrors.password = 'Password must contain a special character';
-      }
-
-      if (formData.password !== formData.confirmPassword) {
-        newErrors.confirmPassword = 'Passwords do not match';
       }
     }
 
@@ -91,11 +91,12 @@ function ProfileAccountTab() {
 
       if (formData.password) {
         updateData.password = formData.password;
+        updateData.oldPassword = formData.oldPassword;
       }
 
       const response = await userService.updateProfile(user.id, updateData);
       setUser(response.user);
-      setFormData((prev) => ({ ...prev, password: '', confirmPassword: '' }));
+      setFormData((prev) => ({ ...prev, oldPassword: '', password: '' }));
       Alert.alert('Success', 'Profile updated successfully');
     } catch (error: any) {
       Alert.alert('Error', error.message || 'Failed to update profile');
@@ -167,23 +168,25 @@ function ProfileAccountTab() {
         </Text>
 
         <TextInput
+          label="Current Password"
+          value={formData.oldPassword}
+          onChangeText={(value: string) =>
+            setFormData((prev) => ({ ...prev, oldPassword: value }))
+          }
+          error={errors.oldPassword}
+          placeholder="Enter current password to change it"
+          secureTextEntry
+          autoCapitalize="none"
+        />
+
+        <TextInput
           label="New Password"
           value={formData.password}
           onChangeText={(value: string) =>
             setFormData((prev) => ({ ...prev, password: value }))
           }
           error={errors.password}
-          secureTextEntry
-          autoCapitalize="none"
-        />
-
-        <TextInput
-          label="Confirm Password"
-          value={formData.confirmPassword}
-          onChangeText={(value: string) =>
-            setFormData((prev) => ({ ...prev, confirmPassword: value }))
-          }
-          error={errors.confirmPassword}
+          placeholder="Enter new password"
           secureTextEntry
           autoCapitalize="none"
         />

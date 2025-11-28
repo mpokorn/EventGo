@@ -617,7 +617,7 @@ router.delete("/:id", requireAuth, validateId('id'), async (req, res, next) => {
       SELECT 
         (SELECT COUNT(*) FROM events WHERE organizer_id = $1) AS event_count,
         (SELECT COUNT(*) FROM transactions WHERE user_id = $1) AS transaction_count,
-        (SELECT COUNT(*) FROM tickets WHERE user_id = $1 OR owner_id = $1) AS ticket_count,
+        (SELECT COUNT(*) FROM tickets WHERE user_id = $1) AS ticket_count,
         (SELECT COUNT(*) FROM waitlist WHERE user_id = $1) AS waitlist_count;
       `,
       [id]

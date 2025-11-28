@@ -77,34 +77,35 @@ export default function EventDetail() {
 
   // Execute the actual purchase
   async function executePurchase() {
-    const purchase = async () => {
-      try {
-        setLoading(true);
-        setMessage("");
+    // Check if user is authenticated
+    if (!requireAuth()) {
+      return;
+    }
 
-        const response = await api.post("/tickets", {
-          event_id: event.id,
-          ticket_type_id: parseInt(ticketType),
-          quantity: parseInt(quantity),
-          payment_method: "card",
-        });
+    try {
+      setLoading(true);
+      setMessage("");
 
-        setMessage(response.data.message);
-        setMessageType("success");
+      const response = await api.post("/tickets", {
+        event_id: event.id,
+        ticket_type_id: parseInt(ticketType),
+        quantity: parseInt(quantity),
+        payment_method: "card",
+      });
 
-        // refresh event data (tickets sold changes)
-        const updated = await api.get(`/events/${id}`);
-        setEvent(updated.data);
+      setMessage(response.data.message);
+      setMessageType("success");
 
-      } catch (err) {
-        setMessage(err.response?.data?.message || "Error purchasing tickets.");
-        setMessageType("error");
-      } finally {
-        setLoading(false);
-      }
-    };
+      // refresh event data (tickets sold changes)
+      const updated = await api.get(`/events/${id}`);
+      setEvent(updated.data);
 
-    requireAuth(purchase);
+    } catch (err) {
+      setMessage(err.response?.data?.message || "Error purchasing tickets.");
+      setMessageType("error");
+    } finally {
+      setLoading(false);
+    }
   }
 
   // WAITLIST JOIN FUNCTION
@@ -116,32 +117,36 @@ export default function EventDetail() {
       message: "Are you sure you want to join the waitlist? You'll be notified if a ticket becomes available.",
       onConfirm: async () => {
         setModal({ ...modal, isOpen: false });
-        requireAuth(async () => {
-          try {
-            const res = await api.post("/waitlist", {
-              user_id: user.id,
-              event_id: event.id,
-            });
+        
+        // Check if user is authenticated
+        if (!requireAuth()) {
+          return;
+        }
 
-            setJoined(true);
-            const position = res.data.position;
-            setModal({
-              isOpen: true,
-              type: "alert",
-              title: "Success",
-              message: `You've been added to the waitlist! You are #${position} in line.`,
-              onConfirm: null
-            });
-          } catch (err) {
-            setModal({
-              isOpen: true,
-              type: "alert",
-              title: "Error",
-              message: err.response?.data?.message || "Error joining waitlist.",
-              onConfirm: null
-            });
-          }
-        });
+        try {
+          const res = await api.post("/waitlist", {
+            user_id: user.id,
+            event_id: event.id,
+          });
+
+          setJoined(true);
+          const position = res.data.position;
+          setModal({
+            isOpen: true,
+            type: "alert",
+            title: "Success",
+            message: `You've been added to the waitlist! You are #${position} in line.`,
+            onConfirm: null
+          });
+        } catch (err) {
+          setModal({
+            isOpen: true,
+            type: "alert",
+            title: "Error",
+            message: err.response?.data?.message || "Error joining waitlist.",
+            onConfirm: null
+          });
+        }
       }
     });
   }

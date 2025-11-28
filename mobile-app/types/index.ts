@@ -45,9 +45,9 @@ export interface Ticket {
   event_name?: string;
   location?: string;
   buyer_name?: string;
-  owner_id?: number;
-  owner_name?: string;
   ticket_type_id?: number;
+  event_total_tickets?: number;
+  event_tickets_sold?: number;
 }
 
 export interface Transaction {
