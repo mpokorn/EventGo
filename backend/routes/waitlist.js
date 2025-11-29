@@ -430,6 +430,8 @@ export async function assignTicketToWaitlist(event_id, ticket_type_id) {
   try {
     await client.query('BEGIN');
     
+    console.log(`🔍 Looking for waitlist users for event ${event_id}, ticket_type ${ticket_type_id}`);
+    
     // Find first person in waitlist who hasn't been offered yet (offered_at IS NULL)
     const waitlistResult = await client.query(
       `SELECT * FROM waitlist 
@@ -441,8 +443,11 @@ export async function assignTicketToWaitlist(event_id, ticket_type_id) {
       [event_id]
     );
 
+    console.log(`📋 Found ${waitlistResult.rows.length} waitlist user(s)`);
+
     if (waitlistResult.rows.length === 0) {
       await client.query('ROLLBACK');
+      console.log('❌ No waitlist users found');
       return { assigned: false };
     }
 
@@ -544,41 +549,48 @@ router.post("/accept-ticket/:transaction_id", async (req, res, next) => {
     const ticket = ticketResult.rows[0];
     const transaction = txResult.rows[0];
 
-    // Check waitlist entry for expiration
+    console.log(`🔍 Checking waitlist for user ${transaction.user_id}, event ${ticket.event_id}`);
+
+    // Check waitlist entry for expiration (if it exists)
     const waitlistCheck = await pool.query(
       `SELECT * FROM waitlist WHERE user_id = $1 AND event_id = $2;`,
       [transaction.user_id, ticket.event_id]
     );
 
-    if (waitlistCheck.rows.length === 0) {
-      return res.status(404).json({ message: "Waitlist entry not found!" });
-    }
+    console.log(`📋 Waitlist check result:`, waitlistCheck.rows);
 
-    const waitlistEntry = waitlistCheck.rows[0];
-    const now = new Date();
-    const expiresAt = new Date(waitlistEntry.reservation_expires_at);
-    const offeredAt = new Date(waitlistEntry.offered_at);
-    
-    console.log('🕐 Reservation check:', {
-      transaction_id,
-      offered_at: offeredAt.toISOString(),
-      current_time: now.toISOString(),
-      expires_at: expiresAt.toISOString(),
-      is_expired: expiresAt < now,
-      minutes_remaining: Math.floor((expiresAt - now) / (60 * 1000))
-    });
-    
-    if (expiresAt < now) {
-      // Reservation expired - clean it up and return error
-      await pool.query(`UPDATE transactions SET status = 'expired' WHERE id = $1;`, [transaction_id]);
-      await pool.query(`DELETE FROM tickets WHERE id = $1;`, [ticket.id]);
-      
-      // Try to assign to next person
-      await assignTicketToWaitlist(ticket.event_id, ticket.ticket_type_id);
-      
-      return res.status(410).json({ 
-        message: "This reservation has expired (30 minutes limit). The ticket has been offered to the next person in the waitlist." 
-      });
+    // If waitlist entry exists, check for expiration
+    if (waitlistCheck.rows.length > 0) {
+      const waitlistEntry = waitlistCheck.rows[0];
+
+      // Only check expiration if the entry has been offered
+      if (waitlistEntry.offered_at && waitlistEntry.reservation_expires_at) {
+        const now = new Date();
+        const expiresAt = new Date(waitlistEntry.reservation_expires_at);
+        const offeredAt = new Date(waitlistEntry.offered_at);
+        
+        console.log('🕐 Reservation check:', {
+          transaction_id,
+          offered_at: offeredAt.toISOString(),
+          current_time: now.toISOString(),
+          expires_at: expiresAt.toISOString(),
+          is_expired: expiresAt < now,
+          minutes_remaining: Math.floor((expiresAt - now) / (60 * 1000))
+        });
+        
+        if (expiresAt < now) {
+          // Reservation expired - clean it up and return error
+          await pool.query(`UPDATE transactions SET status = 'expired' WHERE id = $1;`, [transaction_id]);
+          await pool.query(`DELETE FROM tickets WHERE id = $1;`, [ticket.id]);
+          
+          // Try to assign to next person
+          await assignTicketToWaitlist(ticket.event_id, ticket.ticket_type_id);
+          
+          return res.status(410).json({ 
+            message: "This reservation has expired (30 minutes limit). The ticket has been offered to the next person in the waitlist." 
+          });
+        }
+      }
     }
 
     // Find the original ticket that's pending return for the same event and ticket type
@@ -692,6 +704,7 @@ router.post("/decline-ticket/:transaction_id", async (req, res, next) => {
     }
 
     const ticket = ticketResult.rows[0];
+    const transaction = txResult.rows[0];
 
     // Update transaction to cancelled
     await pool.query(
@@ -705,7 +718,7 @@ router.post("/decline-ticket/:transaction_id", async (req, res, next) => {
       [ticket.id]
     );
 
-    // Remove from waitlist after decline
+    // Remove from waitlist after decline (they can rejoin manually if they want)
     await pool.query(
       `DELETE FROM waitlist WHERE user_id = $1 AND event_id = $2;`,
       [transaction.user_id, ticket.event_id]

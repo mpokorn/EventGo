@@ -19,5 +19,8 @@ export const ticketService = {
   },
   refund(ticketId){
     return api.put(`/tickets/${ticketId}/refund`);
+  },
+  organizerRefund(ticketId){
+    return api.put(`/tickets/${ticketId}/organizer-refund`);
   }
 };

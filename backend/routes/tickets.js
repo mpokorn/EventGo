@@ -476,6 +476,97 @@ router.put("/:id/refund", validateId('id'), async (req, res, next) => {
 });
 
 /* --------------------------------------
+   Organizer refund ticket (admin action)
+   - Can refund anytime (not just sold out events)
+   - Ticket goes back to normal sale (decrements tickets_sold)
+   - If sold out, offers to waitlist with 30-min window
+-------------------------------------- */
+router.put("/:id/organizer-refund", validateId('id'), async (req, res, next) => {
+  const id = req.params.id;
+  const organizer_id = req.user.id; // From JWT token
+
+  try {
+    // Get ticket with event info
+    const ticketCheck = await pool.query(
+      `
+      SELECT 
+        t.id, t.ticket_type_id, t.event_id, t.user_id, t.status, t.transaction_id,
+        e.tickets_sold, e.total_tickets, e.organizer_id,
+        tt.type as ticket_type_name
+      FROM tickets t
+      JOIN events e ON t.event_id = e.id
+      LEFT JOIN ticket_types tt ON t.ticket_type_id = tt.id
+      WHERE t.id = $1;
+      `,
+      [id]
+    );
+
+    if (ticketCheck.rows.length === 0) {
+      return res.status(404).json({ message: "Ticket not found!" });
+    }
+
+    const ticket = ticketCheck.rows[0];
+
+    // Verify user is the event organizer
+    if (ticket.organizer_id !== organizer_id) {
+      return res.status(403).json({ message: "Only the event organizer can refund tickets!" });
+    }
+
+    if (ticket.status !== 'active') {
+      return res.status(400).json({ message: "Only active tickets can be refunded!" });
+    }
+
+    const isSoldOut = ticket.tickets_sold >= ticket.total_tickets;
+
+    // Mark ticket as refunded and update event tickets_sold
+    await pool.query(
+      `UPDATE tickets SET status = 'refunded' WHERE id = $1;`,
+      [id]
+    );
+
+    await pool.query(
+      `UPDATE events SET tickets_sold = tickets_sold - 1 WHERE id = $1;`,
+      [ticket.event_id]
+    );
+
+    await pool.query(
+      `UPDATE ticket_types SET tickets_sold = tickets_sold - 1 WHERE id = $1;`,
+      [ticket.ticket_type_id]
+    );
+
+    // Mark original transaction as refunded
+    await pool.query(
+      `UPDATE transactions SET status = 'refunded' WHERE id = $1;`,
+      [ticket.transaction_id]
+    );
+
+    let waitlistAssigned = false;
+
+    // If event WAS sold out, offer to waitlist (with 30-min acceptance window)
+    if (isSoldOut) {
+      const waitlistAssignment = await assignTicketToWaitlist(ticket.event_id, ticket.ticket_type_id);
+      waitlistAssigned = waitlistAssignment.assigned;
+    }
+
+    // Return appropriate message
+    const message = isSoldOut && waitlistAssigned
+      ? "Ticket refunded successfully! It has been offered to the first person on the waitlist."
+      : "Ticket refunded successfully! It is now available for purchase.";
+
+    res.status(200).json({
+      message,
+      ticket_id: id,
+      event_id: ticket.event_id,
+      tickets_available: ticket.total_tickets - (ticket.tickets_sold - 1),
+      waitlist_assigned: waitlistAssigned
+    });
+  } catch (err) {
+    console.error(" Error in PUT /tickets/:id/organizer-refund:", err);
+    next(err);
+  }
+});
+
+/* --------------------------------------
    Delete ticket
 -------------------------------------- */
 router.delete("/:id", validateId('id'), async (req, res, next) => {

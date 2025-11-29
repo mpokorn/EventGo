@@ -59,22 +59,29 @@ export default function OrganizerEventTickets() {
     loadTickets();
   }, [id]);
 
-  // Refund ticket
+  // Refund ticket (organizer action - can refund anytime)
   const refundTicket = async (ticketId) => {
     setModal({
       isOpen: true,
       type: "confirm",
       title: "Refund Ticket",
-      message: "Refund this ticket?",
+      message: "Are you sure you want to refund this ticket? The ticket will be made available for purchase again (or offered to waitlist if sold out).",
       onConfirm: async () => {
         setModal({ ...modal, isOpen: false });
         try {
-          await ticketService.refund(ticketId);
-          setTickets((prev) =>
-            prev.map((t) =>
-              t.id === ticketId ? { ...t, status: "refunded" } : t
-            )
-          );
+          const response = await ticketService.organizerRefund(ticketId);
+          
+          // Reload tickets to show updated status and counts
+          await loadTickets();
+          
+          // Show success message
+          setModal({
+            isOpen: true,
+            type: "alert",
+            title: "Success",
+            message: response.data.message,
+            onConfirm: () => setModal({ ...modal, isOpen: false })
+          });
         } catch (err) {
           console.error(err);
           setModal({
@@ -82,7 +89,7 @@ export default function OrganizerEventTickets() {
             type: "alert",
             title: "Error",
             message: "Refund failed: " + (err.response?.data?.message || err.message),
-            onConfirm: null
+            onConfirm: () => setModal({ ...modal, isOpen: false })
           });
         }
       }
