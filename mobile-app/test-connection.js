@@ -4,7 +4,7 @@
 const axios = require('axios');
 
 // Update this IP to match your computer's IP address
-const BASE_URL = 'http://192.168.1.66:5000';
+const BASE_URL = 'http://192.168.1.201:5000';
 
 async function testConnection() {
   console.log('Testing connection to:', BASE_URL);

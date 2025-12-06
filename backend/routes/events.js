@@ -150,7 +150,7 @@ router.get("/:id", validateId('id'), async (req, res, next) => {
     );
 
     if (eventResult.rows.length === 0) {
-      return res.status(404).json({ message: `Dogodek z ID ${id} ne obstaja.` });
+      return res.status(404).json({ message: `Event with ID ${id} does not exist.` });
     }
 
     const event = eventResult.rows[0];
@@ -259,11 +259,11 @@ router.post("/", requireAuth, async (req, res, next) => {
     ]);
 
     res.status(201).json({
-      message: "Dogodek uspešno dodan!",
+      message: "Event successfully added!",
       event: result.rows[0],
     });
   } catch (err) {
-    console.error("Napaka pri POST /events:", err);
+    console.error("Error in POST /events:", err);
     next(err);
   }
 });
@@ -359,11 +359,11 @@ router.put("/:id", requireAuth, validateId('id'), async (req, res, next) => {
     ]);
 
     res.status(200).json({
-      message: "Dogodek uspešno posodobljen!",
+      message: "Event successfully updated!",
       event: result.rows[0],
     });
   } catch (err) {
-    console.error("Napaka pri PUT /events/:id:", err);
+    console.error("Error in PUT /events/:id:", err);
     next(err);
   }
 });
@@ -478,7 +478,7 @@ router.delete("/:id", requireAuth, async (req, res, next) => {
     );
 
     if (eventCheck.rows.length === 0) {
-      return res.status(404).json({ message: "Dogodek ni bil najden!" });
+      return res.status(404).json({ message: "The event was not found!" });
     }
 
     const event = eventCheck.rows[0];
@@ -497,11 +497,11 @@ router.delete("/:id", requireAuth, async (req, res, next) => {
     );
 
     res.status(200).json({
-      message: "Dogodek uspešno izbrisan!",
+      message: "Event successfully deleted!",
       deleted: result.rows[0],
     });
   } catch (err) {
-    console.error("Napaka pri DELETE /events/:id:", err);
+    console.error("Error in DELETE /events/:id:", err);
     next(err);
   }
 });

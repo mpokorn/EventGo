@@ -37,8 +37,32 @@ app.get("/", (req, res) => {
 
 
 const PORT = process.env.PORT || 5000;
+
+// Get network IP addresses
+import { networkInterfaces } from 'os';
+const getNetworkIPs = () => {
+  const nets = networkInterfaces();
+  const ips = [];
+  
+  for (const name of Object.keys(nets)) {
+    for (const net of nets[name]) {
+      // Skip internal (loopback) and non-IPv4 addresses
+      if (net.family === 'IPv4' && !net.internal) {
+        ips.push(net.address);
+      }
+    }
+  }
+  return ips;
+};
+
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server is running on port ${PORT}`);
   console.log(`Local: http://localhost:${PORT}`);
-  console.log(`Network: http://192.168.1.66:${PORT}`);
+  
+  const networkIPs = getNetworkIPs();
+  if (networkIPs.length > 0) {
+    networkIPs.forEach(ip => {
+      console.log(`Network: http://${ip}:${PORT}`);
+    });
+  }
 });

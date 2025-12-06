@@ -1,7 +1,11 @@
 import express from "express";
 import pool from "../db.js";
+import { requireAuth } from "../middleware/auth.js";
 
 const router = express.Router();
+
+// Protect all waitlist routes - must be authenticated
+router.use(requireAuth);
 
 /* --------------------------------------
   Helper: Cleanup expired reservations and reassign to waitlist
@@ -27,7 +31,7 @@ export async function cleanupExpiredReservations() {
       return { cleaned: 0 };
     }
 
-    console.log(`🧹 Found ${expiredResult.rows.length} expired reservations to cleanup`);
+    console.log(` Found ${expiredResult.rows.length} expired reservations to cleanup`);
 
     for (const expiredTicket of expiredResult.rows) {
       await client.query('BEGIN');
