@@ -14,7 +14,7 @@ router.use(sanitizeBody);
 -------------------------------------- */
 router.get("/", async (req, res, next) => {
   try {
-    const { search, location, startDate, endDate, page = 1, limit = 12 } = req.query;
+    const { search, location, startDate, endDate, filter = 'upcoming', page = 1, limit = 12 } = req.query;
     const offset = (parseInt(page) - 1) * parseInt(limit);
     
     let queryText = `
@@ -65,13 +65,40 @@ router.get("/", async (req, res, next) => {
       paramCount++;
     }
     
-    // Only show upcoming events (where end_datetime or start_datetime is in the future)
-    queryText += ` AND (e.end_datetime > NOW() OR (e.end_datetime IS NULL AND e.start_datetime > NOW()))`;
+    // Filter by event status (upcoming, past, all)
+    if (filter === 'past') {
+      queryText += ` AND (e.end_datetime < NOW() OR (e.end_datetime IS NULL AND e.start_datetime < NOW()))`;
+    } else if (filter === 'upcoming') {
+      queryText += ` AND (e.end_datetime > NOW() OR (e.end_datetime IS NULL AND e.start_datetime > NOW()))`;
+    }
+    // filter === 'all' shows both
     
-    queryText += ` ORDER BY e.start_datetime ASC`;
+    // Sort order: 
+    // - past: most recent first (DESC)
+    // - upcoming: soonest first (ASC)
+    // - all: upcoming first (ASC), then past (DESC) using CASE
+    if (filter === 'past') {
+      queryText += ` ORDER BY e.start_datetime DESC`;
+    } else if (filter === 'all') {
+      queryText += ` ORDER BY 
+        CASE 
+          WHEN e.end_datetime > NOW() OR (e.end_datetime IS NULL AND e.start_datetime > NOW()) THEN 0
+          ELSE 1
+        END,
+        CASE 
+          WHEN e.end_datetime > NOW() OR (e.end_datetime IS NULL AND e.start_datetime > NOW()) THEN e.start_datetime
+          ELSE NULL
+        END ASC,
+        CASE 
+          WHEN e.end_datetime <= NOW() OR (e.end_datetime IS NULL AND e.start_datetime <= NOW()) THEN e.start_datetime
+          ELSE NULL
+        END DESC`;
+    } else {
+      queryText += ` ORDER BY e.start_datetime ASC`;
+    }
     
     // Get total count for pagination
-    const countQuery = queryText.replace(/SELECT .* FROM/, 'SELECT COUNT(*) FROM').split('ORDER BY')[0];
+    const countQuery = queryText.replace(/SELECT[\s\S]+?FROM/, 'SELECT COUNT(*) FROM').split('ORDER BY')[0];
     const countResult = await pool.query(countQuery, params);
     const totalEvents = parseInt(countResult.rows[0].count);
     

@@ -83,10 +83,14 @@ Most endpoints require a JWT token. After login/register, copy the `token` from 
 - `location` - Filter by location
 - `startDate` - Filter by start date (YYYY-MM-DD)
 - `endDate` - Filter by end date
+- `filter` - Filter by status: `upcoming` (default), `past`, or `all`
 - `page` - Page number (default: 1)
 - `limit` - Items per page (default: 12)
 
-**Example:** `/events?search=concert&location=Ljubljana&page=1&limit=10`
+**Examples:** 
+- `/events?search=concert&location=Ljubljana&page=1&limit=10`
+- `/events?filter=past` - Get past events
+- `/events?filter=all` - Get all events (past and upcoming)
 
 ### 2. Get Single Event (Public)
 **GET** `/events/:id`

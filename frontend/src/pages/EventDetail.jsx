@@ -161,6 +161,10 @@ export default function EventDetail() {
   }
   if (!event) return <div className="loading-message">Event not found</div>;
 
+  // Check if event has passed
+  const eventEndTime = new Date(event.end_datetime || event.start_datetime);
+  const isPastEvent = eventEndTime < new Date();
+
   // Check if ALL ticket types are sold out
   const allTicketTypesSoldOut = event.ticket_types?.length > 0 
     ? event.ticket_types.every(t => t.tickets_sold >= t.total_tickets)
@@ -199,8 +203,14 @@ export default function EventDetail() {
         {/* TICKET OR WAITLIST CARD */}
         <div className="event-detail-card event-detail-ticket-card">
 
-          {/* If the event is not sold out → show purchase form */}
-          {!isSoldOut ? (
+          {/* If event has passed */}
+          {isPastEvent ? (
+            <div className="past-event-notice">
+              <p className="event-detail-no-tickets">This event has ended.</p>
+              <p className="event-detail-subtitle">Tickets are no longer available for purchase.</p>
+            </div>
+          ) : !isSoldOut ? (
+            // Event is upcoming and not sold out → show purchase form
             <>
               {/* Ticket Type */}
               <label className="event-detail-label">Ticket Type</label>

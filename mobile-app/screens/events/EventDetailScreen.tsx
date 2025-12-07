@@ -153,6 +153,8 @@ export default function EventDetailScreen() {
 
   const startDate = new Date(event.start_datetime);
   const endDate = new Date(event.end_datetime);
+  const eventEndTime = new Date(event.end_datetime || event.start_datetime);
+  const isPastEvent = eventEndTime < new Date();
   const isUpcoming = startDate > new Date();
   const availableTicketsCount = event.total_tickets - (event.tickets_sold || 0);
   const availableTickets = availableTicketsCount > 0;
@@ -215,62 +217,74 @@ export default function EventDetailScreen() {
           <Text style={styles.description}>{event.description}</Text>
         </View>
 
-        {isUpcoming && ticketTypes && ticketTypes.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Ticket Types</Text>
-            {ticketTypes.map((ticketType) => {
-              const ticketsSold = ticketType.tickets_sold || 0;
-              const ticketsAvailable = ticketType.total_tickets - ticketsSold;
-              const soldOut = ticketsAvailable <= 0;
-              
-              return (
-                <TouchableOpacity
-                  key={ticketType.id}
-                  onPress={() => !soldOut && handleTicketTypePress(ticketType)}
-                  disabled={soldOut}
-                  activeOpacity={soldOut ? 1 : 0.7}
-                >
-                  <Card style={{...styles.ticketTypeCard, ...(soldOut ? styles.ticketTypeCardDisabled : {})}}>
-                    <View style={styles.ticketTypeHeader}>
-                      <Text style={styles.ticketTypeName}>{ticketType.type}</Text>
-                      <Text style={styles.ticketTypePrice}>€{ticketType.price}</Text>
-                    </View>
-                    <View style={styles.ticketTypeFooter}>
-                      <Text style={[styles.ticketTypeAvailable, soldOut && styles.ticketTypeSoldOut]}>
-                        {ticketsAvailable} / {ticketType.total_tickets} available
-                      </Text>
-                      {soldOut && (
-                        <View style={styles.soldOutBadge}>
-                          <Text style={styles.soldOutText}>Sold Out</Text>
-                        </View>
-                      )}
-                    </View>
-                  </Card>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        )}
-
-        {isUpcoming && (!ticketTypes || ticketTypes.length === 0) && (
-          <Card style={styles.noTicketsCard}>
-            <Ionicons name="ticket-outline" size={48} color={colors.textSecondary} />
-            <Text style={styles.noTicketsText}>
-              No tickets available yet
-            </Text>
-            <Text style={styles.noTicketsSubtext}>
-              Tickets for this event haven't been set up yet. Check back later!
+        {isPastEvent ? (
+          <Card style={styles.pastEventCard}>
+            <Ionicons name="time-outline" size={48} color={colors.textSecondary} />
+            <Text style={styles.pastEventTitle}>This Event Has Ended</Text>
+            <Text style={styles.pastEventText}>
+              This event took place on {endDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
             </Text>
           </Card>
-        )}
+        ) : (
+          <>
+            {ticketTypes && ticketTypes.length > 0 && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Ticket Types</Text>
+                {ticketTypes.map((ticketType) => {
+                  const ticketsSold = ticketType.tickets_sold || 0;
+                  const ticketsAvailable = ticketType.total_tickets - ticketsSold;
+                  const soldOut = ticketsAvailable <= 0;
+                  
+                  return (
+                    <TouchableOpacity
+                      key={ticketType.id}
+                      onPress={() => !soldOut && handleTicketTypePress(ticketType)}
+                      disabled={soldOut}
+                      activeOpacity={soldOut ? 1 : 0.7}
+                    >
+                      <Card style={{...styles.ticketTypeCard, ...(soldOut ? styles.ticketTypeCardDisabled : {})}}>
+                        <View style={styles.ticketTypeHeader}>
+                          <Text style={styles.ticketTypeName}>{ticketType.type}</Text>
+                          <Text style={styles.ticketTypePrice}>€{ticketType.price}</Text>
+                        </View>
+                        <View style={styles.ticketTypeFooter}>
+                          <Text style={[styles.ticketTypeAvailable, soldOut && styles.ticketTypeSoldOut]}>
+                            {ticketsAvailable} / {ticketType.total_tickets} available
+                          </Text>
+                          {soldOut && (
+                            <View style={styles.soldOutBadge}>
+                              <Text style={styles.soldOutText}>Sold Out</Text>
+                            </View>
+                          )}
+                        </View>
+                      </Card>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )}
 
-        {isUpcoming && ticketTypes && ticketTypes.length > 0 && !availableTickets && (
-          <Button
-            title="Join Waitlist"
-            onPress={handleJoinWaitlist}
-            loading={joiningWaitlist}
-            style={styles.waitlistButton}
-          />
+            {(!ticketTypes || ticketTypes.length === 0) && (
+              <Card style={styles.noTicketsCard}>
+                <Ionicons name="ticket-outline" size={48} color={colors.textSecondary} />
+                <Text style={styles.noTicketsText}>
+                  No tickets available yet
+                </Text>
+                <Text style={styles.noTicketsSubtext}>
+                  Tickets for this event haven't been set up yet. Check back later!
+                </Text>
+              </Card>
+            )}
+
+            {ticketTypes && ticketTypes.length > 0 && !availableTickets && (
+              <Button
+                title="Join Waitlist"
+                onPress={handleJoinWaitlist}
+                loading={joiningWaitlist}
+                style={styles.waitlistButton}
+              />
+            )}
+          </>
         )}
       </ScrollView>
 
@@ -450,6 +464,27 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xs,
   },
   noTicketsSubtext: {
+    color: colors.textSecondary,
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  pastEventCard: {
+    alignItems: 'center',
+    padding: spacing.xl,
+    marginTop: spacing.md,
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    borderColor: colors.textSecondary,
+    backgroundColor: 'transparent',
+  },
+  pastEventTitle: {
+    ...typography.h3,
+    color: colors.text,
+    marginTop: spacing.md,
+    marginBottom: spacing.xs,
+  },
+  pastEventText: {
     color: colors.textSecondary,
     fontSize: 14,
     textAlign: 'center',

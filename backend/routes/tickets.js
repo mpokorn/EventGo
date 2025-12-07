@@ -317,9 +317,9 @@ router.post("/", async (req, res, next) => {
     await client.query('BEGIN');
     
     // Use helpers to validate existence
-    const [userCheckExists, eventCheckExists, typeCheck] = await Promise.all([
+    const [userCheckExists, eventCheck, typeCheck] = await Promise.all([
       userExists(user_id),
-      eventExists(event_id),
+      client.query(`SELECT id, end_datetime, start_datetime FROM events WHERE id = $1`, [event_id]),
       client.query(`SELECT total_tickets, tickets_sold, price FROM ticket_types WHERE id = $1`, [ticket_type_id]),
     ]);
 
@@ -327,10 +327,19 @@ router.post("/", async (req, res, next) => {
       await client.query('ROLLBACK');
       return res.status(404).json({ message: "User does not exist!" });
     }
-    if (!eventCheckExists) {
+    if (eventCheck.rowCount === 0) {
       await client.query('ROLLBACK');
       return res.status(404).json({ message: "Event does not exist!" });
     }
+    
+    // Check if event has already passed
+    const event = eventCheck.rows[0];
+    const eventEndTime = new Date(event.end_datetime || event.start_datetime);
+    if (eventEndTime < new Date()) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ message: "Cannot purchase tickets for past events!" });
+    }
+    
     if (typeCheck.rowCount === 0) {
       await client.query('ROLLBACK');
       return res.status(404).json({ message: "Ticket type does not exist!" });

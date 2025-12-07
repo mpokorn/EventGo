@@ -14,7 +14,7 @@
 }
 .events-header {
   text-align: center;
-  margin-bottom: var(--space-xl);
+  margin-bottom: var(--space-lg);
 }
 
 .events-title {
@@ -27,6 +27,40 @@
   color: var(--color-text-tertiary);
   margin-top: var(--space-sm);
   font-size: 1.1rem;
+}
+
+/* Filter Tabs */
+.filter-tabs {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-md);
+  margin-bottom: var(--space-xl);
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.filter-tab {
+  padding: var(--space-sm) var(--space-xl);
+  border: 2px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 1rem;
+}
+
+.filter-tab:hover {
+  border-color: var(--color-primary);
+  transform: translateY(-2px);
+}
+
+.filter-tab.active {
+  background: var(--color-primary);
+  color: var(--color-text-primary);
+  border-color: var(--color-primary);
 }
 
 /* Search and Filter Section */
@@ -101,6 +135,54 @@
   font-weight: 700;
   font-size: 0.85rem;
   z-index: 1;
+}
+
+.event-status-badge {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-md);
+  font-weight: 700;
+  font-size: 0.85rem;
+  z-index: 1;
+}
+
+.event-status-badge.past {
+  background: rgba(156, 163, 175, 0.8);
+  color: var(--color-text-primary);
+}
+
+/* Past Event Styling */
+.event-card.past-event {
+  opacity: 0.75;
+  position: relative;
+}
+
+.event-card.past-event::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.1);
+  pointer-events: none;
+  border-radius: var(--radius-md);
+}
+
+.event-card.past-event .event-title {
+  color: var(--color-text-tertiary);
+}
+
+.event-btn.past {
+  background: var(--color-border);
+  color: var(--color-text-secondary);
+}
+
+.event-btn.past:hover {
+  background: var(--color-surface);
+  transform: translateY(-2px);
 }
 
 .events-grid {

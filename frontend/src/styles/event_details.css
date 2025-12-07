@@ -146,6 +146,27 @@
   color: var(--color-text-tertiary);
 }
 
+/* Past Event Notice */
+.past-event-notice {
+  text-align: center;
+  padding: var(--space-xl);
+  background: rgba(156, 163, 175, 0.1);
+  border-radius: var(--radius-md);
+  border: 1px dashed var(--color-border);
+}
+
+.past-event-notice .event-detail-no-tickets {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-sm);
+}
+
+.past-event-notice .event-detail-subtitle {
+  font-size: 1rem;
+  margin-top: 0;
+}
+
 /* Small-screen layout */
 @media (max-width: 768px) {
   .event-detail-main {

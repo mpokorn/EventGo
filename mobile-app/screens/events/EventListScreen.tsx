@@ -6,6 +6,7 @@ import {
   FlatList,
   RefreshControl,
   TextInput as RNTextInput,
+  TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -22,6 +23,7 @@ export default function EventListScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [filter, setFilter] = useState<'upcoming' | 'past' | 'all'>('upcoming');
   const [error, setError] = useState('');
 
   const loadEvents = useCallback(async () => {
@@ -29,6 +31,7 @@ export default function EventListScreen() {
       setError('');
       const data = await eventService.getEvents({
         search: searchQuery || undefined,
+        filter,
       });
       setEvents(data);
     } catch (err: any) {
@@ -41,7 +44,7 @@ export default function EventListScreen() {
 
   useEffect(() => {
     loadEvents();
-  }, []);
+  }, [filter]);
 
   useEffect(() => {
     const delayDebounceFn = setTimeout(() => {
@@ -92,6 +95,34 @@ export default function EventListScreen() {
               onPress={() => setSearchQuery('')}
             />
           )}
+        </View>
+
+        {/* Filter Tabs */}
+        <View style={styles.filterContainer}>
+          <TouchableOpacity
+            style={[styles.filterButton, filter === 'upcoming' && styles.filterButtonActive]}
+            onPress={() => setFilter('upcoming')}
+          >
+            <Text style={[styles.filterText, filter === 'upcoming' && styles.filterTextActive]}>
+              Upcoming
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.filterButton, filter === 'past' && styles.filterButtonActive]}
+            onPress={() => setFilter('past')}
+          >
+            <Text style={[styles.filterText, filter === 'past' && styles.filterTextActive]}>
+              Past
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.filterButton, filter === 'all' && styles.filterButtonActive]}
+            onPress={() => setFilter('all')}
+          >
+            <Text style={[styles.filterText, filter === 'all' && styles.filterTextActive]}>
+              All
+            </Text>
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -190,5 +221,32 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontSize: 14,
     marginTop: spacing.xs,
+  },
+  filterContainer: {
+    flexDirection: 'row',
+    marginTop: spacing.md,
+    gap: spacing.sm,
+  },
+  filterButton: {
+    flex: 1,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.inputBorder,
+    backgroundColor: colors.inputBg,
+    alignItems: 'center',
+  },
+  filterButtonActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  filterText: {
+    color: colors.textSecondary,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  filterTextActive: {
+    color: '#FFFFFF',
   },
 });

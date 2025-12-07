@@ -9,6 +9,7 @@ export default function Events() {
   const [loading, setLoading] = useState(true);
   const [searchParams, setSearchParams] = useSearchParams();
   const [pagination, setPagination] = useState(null);
+  const [filter, setFilter] = useState('upcoming'); // 'upcoming', 'past', 'all'
   const currentPage = parseInt(searchParams.get("page") || "1");
   const navigate = useNavigate();
   const searchQuery = searchParams.get("search");
@@ -18,15 +19,20 @@ export default function Events() {
     try {
       const params = new URLSearchParams(searchParams);
       if (!params.has("page")) params.set("page", "1");
+      params.set("filter", filter); // Add filter parameter
       
       const res = await api.get(`/events?${params.toString()}`);
       const eventsData = res.data.events || res.data || [];
       
-      // Backend now filters for upcoming events, so we just use the data directly
+      console.log('API Response:', res.data);
+      console.log('Pagination data:', res.data.pagination);
+      console.log('Total events:', eventsData.length);
+      
       setEvents(eventsData);
       
       if (res.data.pagination) {
         setPagination(res.data.pagination);
+        console.log('Pagination set:', res.data.pagination);
       }
     } catch (err) {
       console.error("API error:", err);
@@ -38,13 +44,20 @@ export default function Events() {
 
   useEffect(() => {
     fetchEvents();
-  }, [searchParams]);
+  }, [searchParams, filter]);
   
   const handlePageChange = (newPage) => {
     const params = new URLSearchParams(searchParams);
     params.set("page", newPage.toString());
     setSearchParams(params);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleFilterChange = (newFilter) => {
+    setFilter(newFilter);
+    const params = new URLSearchParams(searchParams);
+    params.set("page", "1"); // Reset to page 1 when changing filter
+    setSearchParams(params);
   };
 
   return (
@@ -57,8 +70,42 @@ export default function Events() {
       )}
       
       <div className="events-header">
-        <h1 className="events-title">{searchQuery ? `Search Results for "${searchQuery}"` : 'Upcoming Events'}</h1>
-        <p className="events-subtitle">Discover and join events happening near you.</p>
+        <h1 className="events-title">
+          {searchQuery 
+            ? `Search Results for "${searchQuery}"` 
+            : filter === 'past' 
+              ? 'Past Events' 
+              : filter === 'all' 
+                ? 'All Events' 
+                : 'Upcoming Events'}
+        </h1>
+        <p className="events-subtitle">
+          {filter === 'past' 
+            ? 'Browse events that have already taken place.' 
+            : 'Discover and join events happening near you.'}
+        </p>
+      </div>
+
+      {/* Filter Tabs */}
+      <div className="filter-tabs">
+        <button 
+          className={`filter-tab ${filter === 'upcoming' ? 'active' : ''}`}
+          onClick={() => handleFilterChange('upcoming')}
+        >
+          Upcoming
+        </button>
+        <button 
+          className={`filter-tab ${filter === 'past' ? 'active' : ''}`}
+          onClick={() => handleFilterChange('past')}
+        >
+          Past Events
+        </button>
+        <button 
+          className={`filter-tab ${filter === 'all' ? 'active' : ''}`}
+          onClick={() => handleFilterChange('all')}
+        >
+          All Events
+        </button>
       </div>
 
       {loading ? (
@@ -70,14 +117,16 @@ export default function Events() {
           <div className="events-grid">
             {events.map((e) => {
               const isSoldOut = e.tickets_sold >= e.total_tickets;
+              const isPastEvent = new Date(e.end_datetime || e.start_datetime) < new Date();
               
               return (
                 <div 
-                  className="event-card event-card-clickable" 
+                  className={`event-card event-card-clickable ${isPastEvent ? 'past-event' : ''}`}
                   key={e.id}
                   onClick={() => navigate(`/events/${e.id}`)}
                 >
-                  {isSoldOut && <div className="sold-out-badge">SOLD OUT</div>}
+                  {isPastEvent && <div className="event-status-badge past">EVENT ENDED</div>}
+                  {!isPastEvent && isSoldOut && <div className="sold-out-badge">SOLD OUT</div>}
                   <div className="event-card-content">
                     <h2 className="event-title">{e.title}</h2>
                     <p className="event-description">
@@ -96,13 +145,24 @@ export default function Events() {
                       </p>
                     </div>
 
-                    <Link 
-                      to={`/events/${e.id}`} 
-                      className={`event-btn ${isSoldOut ? 'sold-out' : ''}`}
-                      onClick={(event) => event.stopPropagation()}
-                    >
-                      {isSoldOut ? 'Join Waitlist' : 'Buy Tickets'}
-                    </Link>
+                    {!isPastEvent && (
+                      <Link 
+                        to={`/events/${e.id}`} 
+                        className={`event-btn ${isSoldOut ? 'sold-out' : ''}`}
+                        onClick={(event) => event.stopPropagation()}
+                      >
+                        {isSoldOut ? 'Join Waitlist' : 'Buy Tickets'}
+                      </Link>
+                    )}
+                    {isPastEvent && (
+                      <Link 
+                        to={`/events/${e.id}`} 
+                        className="event-btn past"
+                        onClick={(event) => event.stopPropagation()}
+                      >
+                        View Details
+                      </Link>
+                    )}
                   </div>
                 </div>
               );

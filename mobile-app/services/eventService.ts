@@ -2,7 +2,7 @@ import api from './api';
 import { Event, TicketType } from '../types';
 
 export const eventService = {
-  getEvents: async (params?: { search?: string; location?: string }) => {
+  getEvents: async (params?: { search?: string; location?: string; filter?: 'upcoming' | 'past' | 'all' }) => {
     const response = await api.get<{ events: Event[] }>('/events', { params });
     return response.data.events;
   },

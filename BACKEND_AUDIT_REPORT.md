@@ -490,6 +490,27 @@ validateEnv();
 
 ---
 
+## ✅ FIXED ISSUES
+
+### 26. **Past Event Protection** ✅ FIXED
+**Issue:** Users could purchase tickets and join waitlist for past events
+
+**Solution Implemented:**
+- Added event date validation in ticket purchase endpoint
+- Added event date validation in waitlist join endpoint
+- Returns 400 error: "Cannot purchase tickets for past events!"
+- Returns 400 error: "Cannot join waitlist for past events!"
+
+### 27. **Event Sorting for "All" Filter** ✅ FIXED
+**Issue:** "All events" view showed random order
+
+**Solution Implemented:**
+- Upcoming events shown first (sorted ASC by date)
+- Past events shown after (sorted DESC by date)
+- Uses CASE statements for complex sorting
+
+---
+
 ## 📝 Medium Priority Improvements
 
 ### 15. **MISSING: API Documentation**

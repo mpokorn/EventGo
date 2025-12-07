@@ -260,7 +260,7 @@ router.post("/", async (req, res, next) => {
 
     // Validate event
     const eventCheck = await pool.query(
-      `SELECT id, total_tickets, tickets_sold FROM events WHERE id = $1`,
+      `SELECT id, total_tickets, tickets_sold, end_datetime, start_datetime FROM events WHERE id = $1`,
       [event_id]
     );
     if (eventCheck.rowCount === 0) {
@@ -268,6 +268,12 @@ router.post("/", async (req, res, next) => {
     }
 
     const event = eventCheck.rows[0];
+
+    // Check if event has already passed
+    const eventEndTime = new Date(event.end_datetime || event.start_datetime);
+    if (eventEndTime < new Date()) {
+      return res.status(400).json({ message: "Cannot join waitlist for past events!" });
+    }
 
     // Check if sold out
     if (event.tickets_sold < event.total_tickets) {
