@@ -1,11 +1,14 @@
 import express from "express";
 import pool from "../db.js";
 import { requireAuth } from "../middleware/auth.js";
+import { validateId, validateIds, validateNumber, sanitizeBody } from "../middleware/validation.js";
+import { userExists, eventExists } from "../utils/dbHelpers.js";
 
 const router = express.Router();
 
 // Protect all waitlist routes - must be authenticated
 router.use(requireAuth);
+router.use(sanitizeBody);
 
 /* --------------------------------------
   Helper: Cleanup expired reservations and reassign to waitlist
@@ -140,22 +143,20 @@ router.get("/", async (req, res, next) => {
 /* --------------------------------------
   Get waitlist for a specific event
 -------------------------------------- */
-router.get("/event/:event_id", async (req, res, next) => {
-  const { event_id } = req.params;
-
-  if (isNaN(event_id)) {
-    return res.status(400).json({ message: "Event ID must be a number." });
-  }
+router.get("/event/:event_id", validateId('event_id'), async (req, res, next) => {
+  const event_id = req.params.event_id; // Already validated
 
   try {
+    // Check if event exists
+    const exists = await eventExists(event_id);
+    if (!exists) {
+      return res.status(404).json({ message: "Event does not exist!" });
+    }
+
     const eventCheck = await pool.query(
       `SELECT id, title FROM events WHERE id = $1;`,
       [event_id]
     );
-
-    if (eventCheck.rowCount === 0) {
-      return res.status(404).json({ message: "Event does not exist!" });
-    }
 
     const result = await pool.query(
       `
@@ -189,12 +190,8 @@ router.get("/event/:event_id", async (req, res, next) => {
 /* --------------------------------------
   Get waitlist for a specific user
 -------------------------------------- */
-router.get("/user/:user_id", async (req, res, next) => {
-  const { user_id } = req.params;
-
-  if (isNaN(user_id)) {
-    return res.status(400).json({ message: "User ID must be a number." });
-  }
+router.get("/user/:user_id", validateId('user_id'), async (req, res, next) => {
+  const user_id = req.params.user_id; // Already validated
 
   try {
     const result = await pool.query(
@@ -242,32 +239,39 @@ router.get("/user/:user_id", async (req, res, next) => {
 router.post("/", async (req, res, next) => {
   const { user_id, event_id } = req.body;
 
-  if (!user_id || !event_id) {
-    return res.status(400).json({
-      message: "Missing required data: user_id and event_id are required!",
-    });
+  // Validate user_id
+  const userIdValidation = validateNumber(user_id, 'User ID', 1, 2147483647);
+  if (!userIdValidation.valid) {
+    return res.status(400).json({ message: userIdValidation.message });
+  }
+
+  // Validate event_id
+  const eventIdValidation = validateNumber(event_id, 'Event ID', 1, 2147483647);
+  if (!eventIdValidation.valid) {
+    return res.status(400).json({ message: eventIdValidation.message });
   }
 
   try {
-    // Validate user
-    const userCheck = await pool.query(
-      `SELECT id FROM users WHERE id = $1`,
-      [user_id]
-    );
-    if (userCheck.rowCount === 0) {
+    // Use helpers to validate existence
+    const [userCheckExists, eventCheck] = await Promise.all([
+      userExists(userIdValidation.value),
+      pool.query(
+        `SELECT id, total_tickets, tickets_sold, end_datetime, start_datetime FROM events WHERE id = $1`,
+        [eventIdValidation.value]
+      )
+    ]);
+
+    if (!userCheckExists) {
       return res.status(404).json({ message: "User does not exist!" });
     }
 
-    // Validate event
-    const eventCheck = await pool.query(
-      `SELECT id, total_tickets, tickets_sold, end_datetime, start_datetime FROM events WHERE id = $1`,
-      [event_id]
-    );
     if (eventCheck.rowCount === 0) {
       return res.status(404).json({ message: "Event does not exist!" });
     }
 
     const event = eventCheck.rows[0];
+    const validUserId = userIdValidation.value;
+    const validEventId = eventIdValidation.value;
 
     // Check if event has already passed
     const eventEndTime = new Date(event.end_datetime || event.start_datetime);
@@ -285,7 +289,7 @@ router.post("/", async (req, res, next) => {
     // Prevent duplicate entry
     const existing = await pool.query(
       `SELECT id FROM waitlist WHERE user_id = $1 AND event_id = $2`,
-      [user_id, event_id]
+      [validUserId, validEventId]
     );
 
     if (existing.rowCount > 0) {
@@ -302,7 +306,7 @@ router.post("/", async (req, res, next) => {
        WHERE t.event_id = $1 AND t.status = 'pending_return'
        ORDER BY t.issued_at ASC
        LIMIT 1;`,
-      [event_id]
+      [validEventId]
     );
 
     // If there's a pending_return ticket, offer it immediately instead of joining waitlist
@@ -314,7 +318,7 @@ router.post("/", async (req, res, next) => {
         `INSERT INTO transactions (user_id, total_price, status, payment_method)
          VALUES ($1, $2, 'pending', 'waitlist')
          RETURNING id;`,
-        [user_id, pendingTicket.price || 0]
+        [validUserId, pendingTicket.price || 0]
       );
       const transaction_id = txResult.rows[0].id;
 
@@ -322,7 +326,7 @@ router.post("/", async (req, res, next) => {
       await pool.query(
         `INSERT INTO tickets (transaction_id, ticket_type_id, event_id, user_id, status)
          VALUES ($1, $2, $3, $4, 'reserved');`,
-        [transaction_id, pendingTicket.ticket_type_id, event_id, user_id]
+        [transaction_id, pendingTicket.ticket_type_id, validEventId, validUserId]
       );
 
       return res.status(201).json({
@@ -337,7 +341,7 @@ router.post("/", async (req, res, next) => {
       `INSERT INTO waitlist (user_id, event_id)
        VALUES ($1, $2)
        RETURNING *;`,
-      [user_id, event_id]
+      [validUserId, validEventId]
     );
 
     // Calculate position in waitlist using ROW_NUMBER
@@ -348,7 +352,7 @@ router.post("/", async (req, res, next) => {
         WHERE event_id = $1
       ) ranked
       WHERE id = $2;`,
-      [event_id, inserted.rows[0].id]
+      [validEventId, inserted.rows[0].id]
     );
 
     return res.status(201).json({
@@ -366,12 +370,8 @@ router.post("/", async (req, res, next) => {
 /* --------------------------------------
   Remove user from waitlist (by entry ID)
 -------------------------------------- */
-router.delete("/:id", async (req, res, next) => {
-  const id = Number(req.params.id);
-
-  if (isNaN(id)) {
-    return res.status(400).json({ message: "ID must be a number." });
-  }
+router.delete("/:id", validateId('id'), async (req, res, next) => {
+  const id = req.params.id; // Already validated
 
   try {
     const result = await pool.query(
@@ -397,14 +397,9 @@ router.delete("/:id", async (req, res, next) => {
 /* --------------------------------------
   Remove user from waitlist by event + user
 -------------------------------------- */
-router.delete("/event/:event_id/user/:user_id", async (req, res, next) => {
-  const { event_id, user_id } = req.params;
-
-  if (isNaN(event_id) || isNaN(user_id)) {
-    return res.status(400).json({
-      message: "Event ID and User ID must be numbers.",
-    });
-  }
+router.delete("/event/:event_id/user/:user_id", validateId('event_id'), validateId('user_id'), async (req, res, next) => {
+  const event_id = req.params.event_id; // Already validated
+  const user_id = req.params.user_id; // Already validated
 
   try {
     const result = await pool.query(
@@ -527,12 +522,8 @@ export async function assignTicketToWaitlist(event_id, ticket_type_id) {
 /* --------------------------------------
   Accept reserved ticket from waitlist
 -------------------------------------- */
-router.post("/accept-ticket/:transaction_id", async (req, res, next) => {
-  const transaction_id = parseInt(req.params.transaction_id);
-  
-  if (isNaN(transaction_id)) {
-    return res.status(400).json({ message: "Transaction ID must be a number." });
-  }
+router.post("/accept-ticket/:transaction_id", validateId('transaction_id'), async (req, res, next) => {
+  const transaction_id = req.params.transaction_id; // Already validated
 
   try {
     // Get transaction and verify it's pending
@@ -685,12 +676,8 @@ router.post("/accept-ticket/:transaction_id", async (req, res, next) => {
 /* --------------------------------------
   Decline reserved ticket from waitlist
 -------------------------------------- */
-router.post("/decline-ticket/:transaction_id", async (req, res, next) => {
-  const transaction_id = parseInt(req.params.transaction_id);
-  
-  if (isNaN(transaction_id)) {
-    return res.status(400).json({ message: "Transaction ID must be a number." });
-  }
+router.post("/decline-ticket/:transaction_id", validateId('transaction_id'), async (req, res, next) => {
+  const transaction_id = req.params.transaction_id; // Already validated
 
   try {
     // Get transaction and verify it's pending

@@ -310,6 +310,11 @@ router.post("/", async (req, res, next) => {
     return res.status(400).json({ message: quantityValidation.message });
   }
 
+  // Use validated values
+  const validEventId = eventIdValidation.value;
+  const validTicketTypeId = ticketTypeIdValidation.value;
+  const validQuantity = quantityValidation.value;
+
   // Use a transaction to ensure atomicity
   const client = await pool.connect();
   
@@ -319,8 +324,8 @@ router.post("/", async (req, res, next) => {
     // Use helpers to validate existence
     const [userCheckExists, eventCheck, typeCheck] = await Promise.all([
       userExists(user_id),
-      client.query(`SELECT id, end_datetime, start_datetime FROM events WHERE id = $1`, [event_id]),
-      client.query(`SELECT total_tickets, tickets_sold, price FROM ticket_types WHERE id = $1`, [ticket_type_id]),
+      client.query(`SELECT id, end_datetime, start_datetime FROM events WHERE id = $1`, [validEventId]),
+      client.query(`SELECT total_tickets, tickets_sold, price FROM ticket_types WHERE id = $1`, [validTicketTypeId]),
     ]);
 
     if (!userCheckExists) {
@@ -347,7 +352,7 @@ router.post("/", async (req, res, next) => {
 
     const { total_tickets, tickets_sold, price } = typeCheck.rows[0];
     const available = total_tickets - tickets_sold;
-    if (available < quantity) {
+    if (available < validQuantity) {
       await client.query('ROLLBACK');
       return res.status(400).json({
         message: `Only ${available} tickets available for this type!`,
@@ -355,7 +360,7 @@ router.post("/", async (req, res, next) => {
     }
 
     // 🧾 Create transaction
-    const total_price = Number(price) * quantity;
+    const total_price = Number(price) * validQuantity;
     const txResult = await client.query(
       `INSERT INTO transactions (user_id, total_price, status, payment_method)
        VALUES ($1, $2, 'completed', $3)
@@ -366,12 +371,12 @@ router.post("/", async (req, res, next) => {
 
     // Create tickets
     const insertPromises = [];
-    for (let i = 0; i < quantity; i++) {
+    for (let i = 0; i < validQuantity; i++) {
       insertPromises.push(
         client.query(
           `INSERT INTO tickets (transaction_id, ticket_type_id, event_id, user_id, status)
            VALUES ($1, $2, $3, $4, 'active');`,
-          [transaction_id, ticket_type_id, event_id, user_id]
+          [transaction_id, validTicketTypeId, validEventId, user_id]
         )
       );
     }
@@ -380,7 +385,7 @@ router.post("/", async (req, res, next) => {
     // Update counts
     await client.query(
       `UPDATE ticket_types SET tickets_sold = tickets_sold + $1 WHERE id = $2;`,
-      [quantity, ticket_type_id]
+      [validQuantity, validTicketTypeId]
     );
     
     // Update event's tickets_sold AND total_tickets based on ticket types
@@ -397,16 +402,16 @@ router.post("/", async (req, res, next) => {
          WHERE event_id = $1
        )
        WHERE id = $1;`,
-      [event_id]
+      [validEventId]
     );
 
     await client.query('COMMIT');
 
     res.status(201).json({
-      message: `Successfully purchased ${quantity} ticket(s)!`,
+      message: `Successfully purchased ${validQuantity} ticket(s)!`,
       transaction_id,
       total_price,
-      quantity,
+      quantity: validQuantity,
       payment_method: payment_method || "card",
     });
   } catch (err) {

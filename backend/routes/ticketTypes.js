@@ -77,9 +77,15 @@ router.post("/", requireAuth, async (req, res, next) => {
     return res.status(400).json({ message: ticketsValidation.message });
   }
 
+  // Use validated values
+  const validEventId = eventIdValidation.value;
+  const validType = typeValidation.value;
+  const validPrice = priceValidation.value;
+  const validTotalTickets = ticketsValidation.value;
+
   try {
     // Use helper to verify event ownership
-    const ownsEvent = await userOwnsEvent(req.user.id, event_id);
+    const ownsEvent = await userOwnsEvent(req.user.id, validEventId);
     if (!ownsEvent) {
       return res.status(403).json({ message: "Event not found or you don't have permission to create ticket types for it!" });
     }
@@ -90,7 +96,7 @@ router.post("/", requireAuth, async (req, res, next) => {
       VALUES ($1, $2, $3, $4, 0)
       RETURNING *;
       `,
-      [event_id, typeValidation.value, priceValidation.value, ticketsValidation.value]
+      [validEventId, validType, validPrice, validTotalTickets]
     );
 
     // Sync event's total_tickets
@@ -102,7 +108,7 @@ router.post("/", requireAuth, async (req, res, next) => {
          WHERE event_id = $1
        )
        WHERE id = $1;`,
-      [event_id]
+      [validEventId]
     );
 
     res.status(201).json({
@@ -271,16 +277,22 @@ router.delete("/:id", requireAuth, validateId('id'), async (req, res, next) => {
   }
 });
 
-router.put("/:id/recount", requireAuth, async (req, res, next) => {
-  const { id } = req.params;
-  await pool.query(`
-    UPDATE ticket_types
-    SET tickets_sold = (
-      SELECT COUNT(*) FROM tickets WHERE ticket_type_id = $1
-    )
-    WHERE id = $1;
-  `, [id]);
-  res.json({ message: "Number of sold tickets refreshed!" });
+router.put("/:id/recount", requireAuth, validateId('id'), async (req, res, next) => {
+  const id = req.params.id; // Already validated
+
+  try {
+    await pool.query(`
+      UPDATE ticket_types
+      SET tickets_sold = (
+        SELECT COUNT(*) FROM tickets WHERE ticket_type_id = $1
+      )
+      WHERE id = $1;
+    `, [id]);
+    res.json({ message: "Number of sold tickets refreshed!" });
+  } catch (err) {
+    console.error("Error in PUT /ticket-types/:id/recount:", err);
+    next(err);
+  }
 });
 
 // Sync ALL ticket types and events (useful for fixing data)
