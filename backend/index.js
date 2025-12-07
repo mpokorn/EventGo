@@ -7,34 +7,52 @@ import ticketTypesRouter from "./routes/ticketTypes.js"; //
 import usersRouter from "./routes/users.js";
 import ticketsRouter from "./routes/tickets.js"; //
 import transactionsRouter from "./routes/transactions.js";
-import waitlistRouter from "./routes/waitlist.js";  
-
-
+import waitlistRouter from "./routes/waitlist.js";
+import { swaggerUi, swaggerSpec } from "./swagger.js";
 
 dotenv.config();
 const app = express();
 
 app.use(cors());
-app.use(express.json()); // 2. Tukaj pod to vrstico prilepi spodnji del
+app.use(express.json());
 
-// 3. Poveži events rute
+/**
+ * @swagger
+ * /:
+ *   get:
+ *     summary: API Health Check
+ *     description: Returns a simple message to verify the API is running
+ *     tags: [Health]
+ *     security: []
+ *     responses:
+ *       200:
+ *         description: API is working
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: EventGo API is working
+ */
+app.get("/", (req, res) => {
+  res.json({ message: "EventGo API is working" });
+});
+
+// Swagger UI
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+  customCss: '.swagger-ui .topbar { display: none }',
+  customSiteTitle: "EventGo API Documentation"
+}));
+
+// API routes
 app.use("/events", eventsRouter);
 app.use("/ticket-types", ticketTypesRouter);
 app.use("/users", usersRouter);
 app.use("/tickets", ticketsRouter);
 app.use("/transactions", transactionsRouter);
 app.use("/waitlist", waitlistRouter);
-
-
-
-
-
-// test route
-app.get("/", (req, res) => {
-  res.json({ message: "EventGo API is working" });
-});
-
-
 
 const PORT = process.env.PORT || 5000;
 

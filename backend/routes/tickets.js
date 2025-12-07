@@ -11,9 +11,36 @@ const router = express.Router();
 router.use(requireAuth);
 router.use(sanitizeBody);
 
-/* --------------------------------------
-    GET all tickets (with full details)
--------------------------------------- */
+/**
+ * @swagger
+ * tags:
+ *   name: Tickets
+ *   description: Ticket management endpoints
+ */
+
+/**
+ * @swagger
+ * /tickets:
+ *   get:
+ *     summary: Get all tickets
+ *     tags: [Tickets]
+ *     responses:
+ *       200:
+ *         description: List of all tickets
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 total_tickets:
+ *                   type: integer
+ *                 tickets:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Ticket'
+ */
 router.get("/", async (req, res, next) => {
   try {
     const result = await pool.query(`
@@ -54,9 +81,24 @@ router.get("/", async (req, res, next) => {
   }
 });
 
-/* --------------------------------------
-    GET single ticket by ID
--------------------------------------- */
+/**
+ * @swagger
+ * /tickets/{id}:
+ *   get:
+ *     summary: Get single ticket by ID
+ *     tags: [Tickets]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Ticket details
+ *       404:
+ *         description: Ticket not found
+ */
 router.get("/:id", validateId('id'), async (req, res, next) => {
   const id = req.params.id; // Already validated
 
@@ -95,10 +137,24 @@ router.get("/:id", validateId('id'), async (req, res, next) => {
   }
 });
 
-/* --------------------------------------
-    GET all tickets for a specific user
-   (as buyer or current owner)
--------------------------------------- */
+/**
+ * @swagger
+ * /tickets/user/{user_id}:
+ *   get:
+ *     summary: Get all tickets for a user
+ *     tags: [Tickets]
+ *     parameters:
+ *       - in: path
+ *         name: user_id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: User's tickets
+ *       404:
+ *         description: User not found
+ */
 router.get("/user/:user_id", validateId('user_id'), async (req, res, next) => {
   const user_id = req.params.user_id; // Already validated
 
@@ -168,9 +224,27 @@ router.get("/user/:user_id", validateId('user_id'), async (req, res, next) => {
   }
 });
 
-/* --------------------------------------
-    GET tickets for a specific user and event
--------------------------------------- */
+/**
+ * @swagger
+ * /tickets/user/{user_id}/event/{event_id}:
+ *   get:
+ *     summary: Get user tickets for specific event
+ *     tags: [Tickets]
+ *     parameters:
+ *       - in: path
+ *         name: user_id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *       - in: path
+ *         name: event_id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: User's tickets for the event
+ */
 router.get("/user/:user_id/event/:event_id", validateIds('user_id', 'event_id'), async (req, res, next) => {
   const user_id = req.params.user_id; // Already validated
   const event_id = req.params.event_id; // Already validated
@@ -219,10 +293,24 @@ router.get("/user/:user_id/event/:event_id", validateIds('user_id', 'event_id'),
   }
 });
 
-/* --------------------------------------
-    GET all tickets for a specific event
-   (for organizer overview)
--------------------------------------- */
+/**
+ * @swagger
+ * /tickets/event/{event_id}:
+ *   get:
+ *     summary: Get all tickets for an event
+ *     tags: [Tickets]
+ *     parameters:
+ *       - in: path
+ *         name: event_id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: All tickets for the event
+ *       404:
+ *         description: Event not found
+ */
 router.get("/event/:event_id", validateId('event_id'), async (req, res, next) => {
   const event_id = req.params.event_id; // Already validated
 
@@ -285,9 +373,45 @@ router.get("/event/:event_id", validateId('event_id'), async (req, res, next) =>
 
 
 
-/* --------------------------------------
-    Purchase new tickets (create transaction + tickets)
--------------------------------------- */
+/**
+ * @swagger
+ * /tickets:
+ *   post:
+ *     summary: Purchase new tickets
+ *     tags: [Tickets]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - event_id
+ *               - ticket_type_id
+ *             properties:
+ *               event_id:
+ *                 type: integer
+ *                 example: 1
+ *               ticket_type_id:
+ *                 type: integer
+ *                 example: 1
+ *               quantity:
+ *                 type: integer
+ *                 default: 1
+ *                 minimum: 1
+ *                 maximum: 10
+ *               payment_method:
+ *                 type: string
+ *                 enum: [card, paypal]
+ *                 default: card
+ *     responses:
+ *       201:
+ *         description: Tickets purchased successfully
+ *       400:
+ *         description: Not enough tickets available
+ *       404:
+ *         description: Event or ticket type not found
+ */
 router.post("/", async (req, res, next) => {
   const { event_id, ticket_type_id, quantity = 1, payment_method } = req.body;
   const user_id = req.user.id; // Get user ID from authenticated token
@@ -423,9 +547,26 @@ router.post("/", async (req, res, next) => {
   }
 });
 
-/* --------------------------------------
-    Refund ticket - Always goes to waitlist system
--------------------------------------- */
+/**
+ * @swagger
+ * /tickets/{id}/refund:
+ *   put:
+ *     summary: Request ticket refund
+ *     tags: [Tickets]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Refund processed successfully
+ *       403:
+ *         description: Not authorized to refund this ticket
+ *       404:
+ *         description: Ticket not found
+ */
 router.put("/:id/refund", validateId('id'), async (req, res, next) => {
   const id = req.params.id; // Already validated
 
@@ -580,9 +721,24 @@ router.put("/:id/organizer-refund", validateId('id'), async (req, res, next) => 
   }
 });
 
-/* --------------------------------------
-   Delete ticket
--------------------------------------- */
+/**
+ * @swagger
+ * /tickets/{id}:
+ *   delete:
+ *     summary: Delete a ticket
+ *     tags: [Tickets]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Ticket deleted
+ *       404:
+ *         description: Ticket not found
+ */
 router.delete("/:id", validateId('id'), async (req, res, next) => {
   const id = req.params.id; // Already validated
 

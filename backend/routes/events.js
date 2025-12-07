@@ -9,9 +9,52 @@ const router = express.Router();
 // Apply sanitization middleware to all POST/PUT routes
 router.use(sanitizeBody);
 
-/* --------------------------------------
-    GET all events with search and filtering
--------------------------------------- */
+/**
+ * @swagger
+ * tags:
+ *   name: Events
+ *   description: Event management endpoints
+ */
+
+/**
+ * @swagger
+ * /events:
+ *   get:
+ *     summary: Get all events with filters
+ *     tags: [Events]
+ *     security: []
+ *     parameters:
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: Search by title or description
+ *       - in: query
+ *         name: location
+ *         schema:
+ *           type: string
+ *         description: Filter by location
+ *       - in: query
+ *         name: filter
+ *         schema:
+ *           type: string
+ *           enum: [all, upcoming, past]
+ *           default: upcoming
+ *         description: Filter by event status
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 12
+ *     responses:
+ *       200:
+ *         description: List of events
+ */
 router.get("/", async (req, res, next) => {
   try {
     const { search, location, startDate, endDate, filter = 'upcoming', page = 1, limit = 12 } = req.query;
@@ -128,9 +171,25 @@ router.get("/", async (req, res, next) => {
 });
 
 
-/* --------------------------------------
-   GET all events for a specific organizer (PROTECTED)
--------------------------------------- */
+/**
+ * @swagger
+ * /events/organizer/{organizerId}:
+ *   get:
+ *     summary: Get all events for a specific organizer
+ *     tags: [Events]
+ *     parameters:
+ *       - in: path
+ *         name: organizerId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Organizer ID
+ *     responses:
+ *       200:
+ *         description: List of organizer's events
+ *       403:
+ *         description: Forbidden - can only view own events
+ */
 router.get("/organizer/:organizerId", requireAuth, validateId('organizerId'), async (req, res, next) => {
   const organizerId = req.params.organizerId; // Already validated
 
@@ -169,9 +228,30 @@ router.get("/organizer/:organizerId", requireAuth, validateId('organizerId'), as
 });
 
 
-/* --------------------------------------
-    GET single event + its ticket types
--------------------------------------- */
+/**
+ * @swagger
+ * /events/{id}:
+ *   get:
+ *     summary: Get single event with ticket types
+ *     tags: [Events]
+ *     security: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Event ID
+ *     responses:
+ *       200:
+ *         description: Event details with ticket types
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Event'
+ *       404:
+ *         description: Event not found
+ */
 router.get("/:id", validateId('id'), async (req, res, next) => {
   const id = req.params.id; // Already validated
 
@@ -213,9 +293,48 @@ router.get("/:id", validateId('id'), async (req, res, next) => {
   }
 });
 
-/* --------------------------------------
-   Create a new event (PROTECTED - Organizers only)
--------------------------------------- */
+/**
+ * @swagger
+ * /events:
+ *   post:
+ *     summary: Create a new event
+ *     tags: [Events]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - title
+ *               - location
+ *               - start_datetime
+ *               - total_tickets
+ *             properties:
+ *               title:
+ *                 type: string
+ *                 example: Tech Conference 2025
+ *               description:
+ *                 type: string
+ *                 example: Annual technology conference
+ *               start_datetime:
+ *                 type: string
+ *                 format: date-time
+ *               end_datetime:
+ *                 type: string
+ *                 format: date-time
+ *               location:
+ *                 type: string
+ *                 example: Ljubljana Convention Center
+ *               total_tickets:
+ *                 type: integer
+ *                 example: 500
+ *     responses:
+ *       201:
+ *         description: Event created successfully
+ *       403:
+ *         description: Only organizers can create events
+ */
 router.post("/", requireAuth, async (req, res, next) => {
   const {
     title,
@@ -308,9 +427,46 @@ router.post("/", requireAuth, async (req, res, next) => {
   }
 });
 
-/* --------------------------------------
-   Update existing event (PROTECTED - Own events only)
--------------------------------------- */
+/**
+ * @swagger
+ * /events/{id}:
+ *   put:
+ *     summary: Update an event
+ *     tags: [Events]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               title:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *               start_datetime:
+ *                 type: string
+ *                 format: date-time
+ *               end_datetime:
+ *                 type: string
+ *                 format: date-time
+ *               location:
+ *                 type: string
+ *               total_tickets:
+ *                 type: integer
+ *     responses:
+ *       200:
+ *         description: Event updated successfully
+ *       403:
+ *         description: Not authorized to edit this event
+ *       404:
+ *         description: Event not found
+ */
 router.put("/:id", requireAuth, validateId('id'), async (req, res, next) => {
   const id = req.params.id; // Already validated
   const {
@@ -415,9 +571,45 @@ router.put("/:id", requireAuth, validateId('id'), async (req, res, next) => {
 
 
 
-/* --------------------------------------
-   Get event analytics (PROTECTED)
--------------------------------------- */
+/**
+ * @swagger
+ * /events/{id}/analytics:
+ *   get:
+ *     summary: Get event analytics and statistics
+ *     tags: [Events]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Event analytics data
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 ticketTypes:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/TicketType'
+ *                 totalRevenue:
+ *                   type: string
+ *                 transactionCount:
+ *                   type: integer
+ *                 waitlistCount:
+ *                   type: integer
+ *                 recentSales:
+ *                   type: array
+ *                 paymentMethods:
+ *                   type: array
+ *       403:
+ *         description: Can only view analytics for own events
+ *       404:
+ *         description: Event not found
+ */
 router.get("/:id/analytics", requireAuth, async (req, res, next) => {
   const { id } = req.params;
 
@@ -509,9 +701,26 @@ router.get("/:id/analytics", requireAuth, async (req, res, next) => {
   }
 });
 
-/* --------------------------------------
-   Delete event (PROTECTED - Own events only)
--------------------------------------- */
+/**
+ * @swagger
+ * /events/{id}:
+ *   delete:
+ *     summary: Delete an event
+ *     tags: [Events]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Event deleted successfully
+ *       403:
+ *         description: Can only delete own events
+ *       404:
+ *         description: Event not found
+ */
 router.delete("/:id", requireAuth, async (req, res, next) => {
   const { id } = req.params;
 

@@ -93,9 +93,40 @@ setInterval(() => {
   });
 }, 2 * 60 * 1000); // 2 minutes
 
-/* --------------------------------------
-  Get all waitlist entries (optional filters)
--------------------------------------- */
+/**
+ * @swagger
+ * tags:
+ *   name: Waitlist
+ *   description: Waitlist management for sold-out events
+ */
+
+/**
+ * @swagger
+ * /waitlist:
+ *   get:
+ *     summary: Get all waitlist entries
+ *     tags: [Waitlist]
+ *     parameters:
+ *       - in: query
+ *         name: event_id
+ *         schema:
+ *           type: integer
+ *         description: Filter by event ID
+ *       - in: query
+ *         name: user_id
+ *         schema:
+ *           type: integer
+ *         description: Filter by user ID
+ *     responses:
+ *       200:
+ *         description: List of waitlist entries
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Waitlist'
+ */
 router.get("/", async (req, res, next) => {
   const { event_id, user_id } = req.query;
 
@@ -140,9 +171,24 @@ router.get("/", async (req, res, next) => {
   }
 });
 
-/* --------------------------------------
-  Get waitlist for a specific event
--------------------------------------- */
+/**
+ * @swagger
+ * /waitlist/event/{event_id}:
+ *   get:
+ *     summary: Get waitlist entries for an event
+ *     tags: [Waitlist]
+ *     parameters:
+ *       - in: path
+ *         name: event_id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Waitlist entries for event
+ *       404:
+ *         description: Event not found
+ */
 router.get("/event/:event_id", validateId('event_id'), async (req, res, next) => {
   const event_id = req.params.event_id; // Already validated
 
@@ -187,9 +233,22 @@ router.get("/event/:event_id", validateId('event_id'), async (req, res, next) =>
   }
 });
 
-/* --------------------------------------
-  Get waitlist for a specific user
--------------------------------------- */
+/**
+ * @swagger
+ * /waitlist/user/{user_id}:
+ *   get:
+ *     summary: Get waitlist entries for a user
+ *     tags: [Waitlist]
+ *     parameters:
+ *       - in: path
+ *         name: user_id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: User's waitlist entries with position
+ */
 router.get("/user/:user_id", validateId('user_id'), async (req, res, next) => {
   const user_id = req.params.user_id; // Already validated
 
@@ -233,9 +292,36 @@ router.get("/user/:user_id", validateId('user_id'), async (req, res, next) => {
   }
 });
 
-/* --------------------------------------
-  Add user to waitlist
--------------------------------------- */
+/**
+ * @swagger
+ * /waitlist:
+ *   post:
+ *     summary: Join event waitlist
+ *     tags: [Waitlist]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - user_id
+ *               - event_id
+ *             properties:
+ *               user_id:
+ *                 type: integer
+ *                 example: 1
+ *               event_id:
+ *                 type: integer
+ *                 example: 1
+ *     responses:
+ *       201:
+ *         description: Successfully joined waitlist
+ *       400:
+ *         description: Event not sold out or already on waitlist
+ *       404:
+ *         description: User or event not found
+ */
 router.post("/", async (req, res, next) => {
   const { user_id, event_id } = req.body;
 
@@ -367,9 +453,24 @@ router.post("/", async (req, res, next) => {
   }
 });
 
-/* --------------------------------------
-  Remove user from waitlist (by entry ID)
--------------------------------------- */
+/**
+ * @swagger
+ * /waitlist/{id}:
+ *   delete:
+ *     summary: Remove waitlist entry by ID
+ *     tags: [Waitlist]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: User removed from waitlist
+ *       404:
+ *         description: Entry not found
+ */
 router.delete("/:id", validateId('id'), async (req, res, next) => {
   const id = req.params.id; // Already validated
 
@@ -394,9 +495,29 @@ router.delete("/:id", validateId('id'), async (req, res, next) => {
   }
 });
 
-/* --------------------------------------
-  Remove user from waitlist by event + user
--------------------------------------- */
+/**
+ * @swagger
+ * /waitlist/event/{event_id}/user/{user_id}:
+ *   delete:
+ *     summary: Remove specific user from event waitlist
+ *     tags: [Waitlist]
+ *     parameters:
+ *       - in: path
+ *         name: event_id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *       - in: path
+ *         name: user_id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: User removed from waitlist
+ *       404:
+ *         description: Entry not found
+ */
 router.delete("/event/:event_id/user/:user_id", validateId('event_id'), validateId('user_id'), async (req, res, next) => {
   const event_id = req.params.event_id; // Already validated
   const user_id = req.params.user_id; // Already validated
@@ -519,9 +640,26 @@ export async function assignTicketToWaitlist(event_id, ticket_type_id) {
   }
 }
 
-/* --------------------------------------
-  Accept reserved ticket from waitlist
--------------------------------------- */
+/**
+ * @swagger
+ * /waitlist/accept-ticket/{transaction_id}:
+ *   post:
+ *     summary: Accept reserved ticket from waitlist
+ *     tags: [Waitlist]
+ *     parameters:
+ *       - in: path
+ *         name: transaction_id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Ticket confirmed
+ *       404:
+ *         description: Reservation not found
+ *       410:
+ *         description: Reservation expired
+ */
 router.post("/accept-ticket/:transaction_id", validateId('transaction_id'), async (req, res, next) => {
   const transaction_id = req.params.transaction_id; // Already validated
 
@@ -673,9 +811,24 @@ router.post("/accept-ticket/:transaction_id", validateId('transaction_id'), asyn
   }
 });
 
-/* --------------------------------------
-  Decline reserved ticket from waitlist
--------------------------------------- */
+/**
+ * @swagger
+ * /waitlist/decline-ticket/{transaction_id}:
+ *   post:
+ *     summary: Decline reserved ticket from waitlist
+ *     tags: [Waitlist]
+ *     parameters:
+ *       - in: path
+ *         name: transaction_id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Reservation cancelled, next user notified
+ *       404:
+ *         description: Reservation not found
+ */
 router.post("/decline-ticket/:transaction_id", validateId('transaction_id'), async (req, res, next) => {
   const transaction_id = req.params.transaction_id; // Already validated
 

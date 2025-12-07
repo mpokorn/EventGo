@@ -11,9 +11,69 @@ const router = express.Router();
 // Apply sanitization middleware to all POST/PUT routes
 router.use(sanitizeBody);
 
-/* --------------------------------------
-    User Registration (normal + organizer)
--------------------------------------- */
+/**
+ * @swagger
+ * tags:
+ *   name: Users
+ *   description: User management and authentication
+ */
+
+/**
+ * @swagger
+ * /users/register:
+ *   post:
+ *     summary: Register a new user
+ *     tags: [Users]
+ *     security: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - first_name
+ *               - last_name
+ *               - email
+ *               - password
+ *             properties:
+ *               first_name:
+ *                 type: string
+ *                 example: John
+ *               last_name:
+ *                 type: string
+ *                 example: Doe
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: john.doe@example.com
+ *               password:
+ *                 type: string
+ *                 format: password
+ *                 example: SecurePass123!
+ *               role:
+ *                 type: string
+ *                 enum: [user, organizer, admin]
+ *                 default: user
+ *     responses:
+ *       201:
+ *         description: User registered successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 token:
+ *                   type: string
+ *                 refreshToken:
+ *                   type: string
+ *                 user:
+ *                   $ref: '#/components/schemas/User'
+ *       400:
+ *         description: Validation error or user already exists
+ */
 router.post("/register", async (req, res, next) => {
   const { first_name, last_name, email, password, role } = req.body;
 
@@ -95,9 +155,50 @@ router.post("/register", async (req, res, next) => {
   }
 });
 
-/* --------------------------------------
-    User Login (normal + organizer)
--------------------------------------- */
+/**
+ * @swagger
+ * /users/login:
+ *   post:
+ *     summary: User login
+ *     tags: [Users]
+ *     security: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - password
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: john.doe@example.com
+ *               password:
+ *                 type: string
+ *                 format: password
+ *                 example: SecurePass123!
+ *     responses:
+ *       200:
+ *         description: Login successful
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 token:
+ *                   type: string
+ *                 refreshToken:
+ *                   type: string
+ *                 user:
+ *                   $ref: '#/components/schemas/User'
+ *       401:
+ *         description: Invalid credentials
+ */
 router.post("/login", async (req, res, next) => {
   const { email, password } = req.body;
 
@@ -149,9 +250,41 @@ router.post("/login", async (req, res, next) => {
   }
 });
 
-/* --------------------------------------
-    Organizer Registration (direct)
--------------------------------------- */
+/**
+ * @swagger
+ * /users/organizer-register:
+ *   post:
+ *     summary: Register as an organizer
+ *     tags: [Users]
+ *     security: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - first_name
+ *               - last_name
+ *               - email
+ *               - password
+ *             properties:
+ *               first_name:
+ *                 type: string
+ *               last_name:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *                 format: email
+ *               password:
+ *                 type: string
+ *                 format: password
+ *     responses:
+ *       201:
+ *         description: Organizer registered successfully
+ *       400:
+ *         description: Validation error or email already exists
+ */
 router.post("/organizer-register", async (req, res, next) => {
   const { first_name, last_name, email, password } = req.body;
 
@@ -273,9 +406,34 @@ router.post("/organizer-login", async (req, res, next) => {
   }
 });
 
-/* --------------------------------------
-    Get all users (PROTECTED - optional role filter)
--------------------------------------- */
+/**
+ * @swagger
+ * /users:
+ *   get:
+ *     summary: Get all users
+ *     tags: [Users]
+ *     parameters:
+ *       - in: query
+ *         name: role
+ *         schema:
+ *           type: string
+ *           enum: [user, organizer, admin]
+ *         description: Filter by user role
+ *     responses:
+ *       200:
+ *         description: List of users
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 users:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/User'
+ */
 router.get("/", requireAuth, async (req, res, next) => {
   const { role } = req.query;
 
@@ -300,9 +458,31 @@ router.get("/", requireAuth, async (req, res, next) => {
   }
 });
 
-/* --------------------------------------
-    Get user by ID (PROTECTED - Own profile only)
--------------------------------------- */
+/**
+ * @swagger
+ * /users/{id}:
+ *   get:
+ *     summary: Get user by ID
+ *     tags: [Users]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: User ID
+ *     responses:
+ *       200:
+ *         description: User details
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/User'
+ *       403:
+ *         description: Can only access own profile
+ *       404:
+ *         description: User not found
+ */
 router.get("/:id", requireAuth, validateId('id'), async (req, res, next) => {
   const id = req.params.id; // Already validated and converted to number
 

@@ -10,9 +10,38 @@ const router = express.Router();
 // GET routes can remain public for browsing
 router.use(sanitizeBody);
 
-/* --------------------------------------
-    Get all ticket types for a specific event
--------------------------------------- */
+/**
+ * @swagger
+ * tags:
+ *   name: Ticket Types
+ *   description: Ticket type management for events
+ */
+
+/**
+ * @swagger
+ * /ticket-types/{event_id}:
+ *   get:
+ *     summary: Get all ticket types for an event
+ *     tags: [Ticket Types]
+ *     security: []
+ *     parameters:
+ *       - in: path
+ *         name: event_id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: List of ticket types
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/TicketType'
+ *       404:
+ *         description: No ticket types found
+ */
 router.get("/:event_id", validateId('event_id'), async (req, res, next) => {
   const event_id = req.params.event_id; // Already validated
 
@@ -47,9 +76,42 @@ router.get("/:event_id", validateId('event_id'), async (req, res, next) => {
   }
 });
 
-/* --------------------------------------
-    Add new ticket type (PROTECTED - event owner only)
--------------------------------------- */
+/**
+ * @swagger
+ * /ticket-types:
+ *   post:
+ *     summary: Create a new ticket type
+ *     tags: [Ticket Types]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - event_id
+ *               - type
+ *               - price
+ *               - total_tickets
+ *             properties:
+ *               event_id:
+ *                 type: integer
+ *                 example: 1
+ *               type:
+ *                 type: string
+ *                 example: VIP
+ *               price:
+ *                 type: number
+ *                 example: 99.99
+ *               total_tickets:
+ *                 type: integer
+ *                 example: 100
+ *     responses:
+ *       201:
+ *         description: Ticket type created successfully
+ *       403:
+ *         description: Not authorized - must be event owner
+ */
 router.post("/", requireAuth, async (req, res, next) => {
   const { event_id, type, price, total_tickets } = req.body;
 
@@ -121,9 +183,38 @@ router.post("/", requireAuth, async (req, res, next) => {
   }
 });
 
-/* --------------------------------------
-    Update existing ticket type
--------------------------------------- */
+/**
+ * @swagger
+ * /ticket-types/{id}:
+ *   patch:
+ *     summary: Update a ticket type
+ *     tags: [Ticket Types]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               type:
+ *                 type: string
+ *               price:
+ *                 type: number
+ *               total_tickets:
+ *                 type: integer
+ *               tickets_sold:
+ *                 type: integer
+ *     responses:
+ *       200:
+ *         description: Ticket type updated
+ *       403:
+ *         description: Must be event owner
+ */
 router.patch("/:id", requireAuth, validateId('id'), async (req, res, next) => {
   const id = req.params.id; // Already validated
   const { type, price, total_tickets, tickets_sold } = req.body;
@@ -204,9 +295,26 @@ router.patch("/:id", requireAuth, validateId('id'), async (req, res, next) => {
   }
 });
 
-/* --------------------------------------
-    Delete ticket type (PROTECTED - event owner only)
--------------------------------------- */
+/**
+ * @swagger
+ * /ticket-types/{id}:
+ *   delete:
+ *     summary: Delete a ticket type
+ *     tags: [Ticket Types]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Ticket type deleted
+ *       403:
+ *         description: Must be event owner
+ *       404:
+ *         description: Ticket type not found
+ */
 router.delete("/:id", requireAuth, validateId('id'), async (req, res, next) => {
   const id = req.params.id; // Already validated
 
@@ -277,6 +385,24 @@ router.delete("/:id", requireAuth, validateId('id'), async (req, res, next) => {
   }
 });
 
+/**
+ * @swagger
+ * /ticket-types/{id}/recount:
+ *   put:
+ *     summary: Recalculate sold tickets count
+ *     tags: [Ticket Types]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Ticket count refreshed
+ */
 router.put("/:id/recount", requireAuth, validateId('id'), async (req, res, next) => {
   const id = req.params.id; // Already validated
 

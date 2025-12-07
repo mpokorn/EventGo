@@ -10,9 +10,29 @@ const router = express.Router();
 router.use(requireAuth);
 router.use(sanitizeBody);
 
-/* --------------------------------------
-    Get all transactions (with buyer + summary)
--------------------------------------- */
+/**
+ * @swagger
+ * tags:
+ *   name: Transactions
+ *   description: Transaction management endpoints
+ */
+
+/**
+ * @swagger
+ * /transactions:
+ *   get:
+ *     summary: Get all transactions
+ *     tags: [Transactions]
+ *     responses:
+ *       200:
+ *         description: List of all transactions
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Transaction'
+ */
 router.get("/", async (req, res, next) => {
   try {
     const result = await pool.query(`
@@ -40,9 +60,24 @@ router.get("/", async (req, res, next) => {
   }
 });
 
-/* --------------------------------------
-    Get all transactions for a specific user
--------------------------------------- */
+/**
+ * @swagger
+ * /transactions/user/{id}:
+ *   get:
+ *     summary: Get all transactions for a user
+ *     tags: [Transactions]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: User transactions
+ *       404:
+ *         description: User not found
+ */
 router.get("/user/:id", validateId('id'), async (req, res, next) => {
   const userId = req.params.id; // Already validated
 
@@ -115,9 +150,24 @@ router.get("/user/:id", validateId('id'), async (req, res, next) => {
 });
 
 
-/* --------------------------------------
-    Get one transaction with ticket details
--------------------------------------- */
+/**
+ * @swagger
+ * /transactions/{id}:
+ *   get:
+ *     summary: Get transaction details
+ *     tags: [Transactions]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Transaction details with tickets
+ *       404:
+ *         description: Transaction not found
+ */
 router.get("/:id", validateId('id'), async (req, res, next) => {
   const id = req.params.id; // Already validated
 
@@ -172,9 +222,35 @@ router.get("/:id", validateId('id'), async (req, res, next) => {
   }
 });
 
-/* --------------------------------------
-    Create new transaction manually (optional)
--------------------------------------- */
+/**
+ * @swagger
+ * /transactions:
+ *   post:
+ *     summary: Create a transaction manually
+ *     tags: [Transactions]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - user_id
+ *               - total_price
+ *             properties:
+ *               user_id:
+ *                 type: integer
+ *               total_price:
+ *                 type: number
+ *               status:
+ *                 type: string
+ *                 enum: [completed, pending, cancelled]
+ *               payment_method:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Transaction created
+ */
 router.post("/", async (req, res, next) => {
   const { user_id, total_price, status, payment_method, reference_code } = req.body;
 
@@ -202,9 +278,24 @@ router.post("/", async (req, res, next) => {
   }
 });
 
-/* --------------------------------------
-    Delete a transaction
--------------------------------------- */
+/**
+ * @swagger
+ * /transactions/{id}:
+ *   delete:
+ *     summary: Delete a transaction
+ *     tags: [Transactions]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Transaction deleted
+ *       404:
+ *         description: Transaction not found
+ */
 router.delete("/:id", validateId('id'), async (req, res, next) => {
   const id = req.params.id; // Already validated
 
