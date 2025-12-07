@@ -28,7 +28,11 @@ router.get("/", async (req, res, next) => {
         e.total_tickets,
         e.tickets_sold,
         e.created_at,
-        CONCAT(u.first_name, ' ', u.last_name) AS organizer_name
+        CONCAT(u.first_name, ' ', u.last_name) AS organizer_name,
+        CASE 
+          WHEN COALESCE(e.end_datetime, e.start_datetime) < NOW() THEN true
+          ELSE false
+        END as is_past
       FROM events e
       LEFT JOIN users u ON e.organizer_id = u.id
       WHERE 1=1
@@ -67,9 +71,9 @@ router.get("/", async (req, res, next) => {
     
     // Filter by event status (upcoming, past, all)
     if (filter === 'past') {
-      queryText += ` AND (e.end_datetime < NOW() OR (e.end_datetime IS NULL AND e.start_datetime < NOW()))`;
+      queryText += ` AND COALESCE(e.end_datetime, e.start_datetime) < NOW()`;
     } else if (filter === 'upcoming') {
-      queryText += ` AND (e.end_datetime > NOW() OR (e.end_datetime IS NULL AND e.start_datetime > NOW()))`;
+      queryText += ` AND COALESCE(e.end_datetime, e.start_datetime) >= NOW()`;
     }
     // filter === 'all' shows both
     
@@ -82,15 +86,15 @@ router.get("/", async (req, res, next) => {
     } else if (filter === 'all') {
       queryText += ` ORDER BY 
         CASE 
-          WHEN e.end_datetime > NOW() OR (e.end_datetime IS NULL AND e.start_datetime > NOW()) THEN 0
+          WHEN COALESCE(e.end_datetime, e.start_datetime) >= NOW() THEN 0
           ELSE 1
         END,
         CASE 
-          WHEN e.end_datetime > NOW() OR (e.end_datetime IS NULL AND e.start_datetime > NOW()) THEN e.start_datetime
+          WHEN COALESCE(e.end_datetime, e.start_datetime) >= NOW() THEN e.start_datetime
           ELSE NULL
         END ASC,
         CASE 
-          WHEN e.end_datetime <= NOW() OR (e.end_datetime IS NULL AND e.start_datetime <= NOW()) THEN e.start_datetime
+          WHEN COALESCE(e.end_datetime, e.start_datetime) < NOW() THEN e.start_datetime
           ELSE NULL
         END DESC`;
     } else {
@@ -146,7 +150,11 @@ router.get("/organizer/:organizerId", requireAuth, validateId('organizerId'), as
           e.location,
           e.total_tickets,
           e.tickets_sold,
-          e.created_at
+          e.created_at,
+          CASE 
+            WHEN COALESCE(e.end_datetime, e.start_datetime) < NOW() THEN true
+            ELSE false
+          END as is_past
         FROM events e
         WHERE e.organizer_id = $1
         ORDER BY e.start_datetime ASC`,
@@ -169,7 +177,12 @@ router.get("/:id", validateId('id'), async (req, res, next) => {
 
   try {
     const eventResult = await pool.query(
-      `SELECT e.*, CONCAT(u.first_name, ' ', u.last_name) AS organizer_name
+      `SELECT e.*, 
+              CONCAT(u.first_name, ' ', u.last_name) AS organizer_name,
+              CASE 
+                WHEN COALESCE(e.end_datetime, e.start_datetime) < NOW() THEN true
+                ELSE false
+              END as is_past
        FROM events e
        LEFT JOIN users u ON e.organizer_id = u.id
        WHERE e.id = $1`,
@@ -226,7 +239,7 @@ router.post("/", requireAuth, async (req, res, next) => {
     return res.status(400).json({ message: titleValidation.message });
   }
 
-  // Validate description (optional but if provided, validate)
+  // Validate description 
   let descriptionValue = null;
   if (description) {
     const descValidation = validateString(description, 'Description', 1, 5000);
@@ -319,6 +332,7 @@ router.put("/:id", requireAuth, validateId('id'), async (req, res, next) => {
     }
 
     // Validate fields if provided
+    // Validate title
     if (title) {
       const titleValidation = validateString(title, 'Title', 3, 200);
       if (!titleValidation.valid) {
@@ -326,6 +340,7 @@ router.put("/:id", requireAuth, validateId('id'), async (req, res, next) => {
       }
     }
 
+     // Validate description
     if (description) {
       const descValidation = validateString(description, 'Description', 1, 5000);
       if (!descValidation.valid) {
@@ -333,6 +348,7 @@ router.put("/:id", requireAuth, validateId('id'), async (req, res, next) => {
       }
     }
 
+     // Validate location  
     if (location) {
       const locationValidation = validateString(location, 'Location', 3, 200);
       if (!locationValidation.valid) {
@@ -340,6 +356,7 @@ router.put("/:id", requireAuth, validateId('id'), async (req, res, next) => {
       }
     }
 
+    // Validate total_tickets
     if (total_tickets) {
       const ticketsValidation = validateNumber(total_tickets, 'Total tickets', 1, 100000);
       if (!ticketsValidation.valid) {
@@ -347,6 +364,7 @@ router.put("/:id", requireAuth, validateId('id'), async (req, res, next) => {
       }
     }
 
+    // Validate start_datetime and end_datetime
     if (start_datetime && end_datetime) {
       const startValidation = validateDate(start_datetime, 'Start date', { allowPast: false });
       if (!startValidation.valid) {
@@ -362,7 +380,7 @@ router.put("/:id", requireAuth, validateId('id'), async (req, res, next) => {
       }
     }
 
-    // Posodobi dogodek
+    // Update event
     const sql = `
       UPDATE events
       SET title = COALESCE($1, title),

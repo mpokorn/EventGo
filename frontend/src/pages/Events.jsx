@@ -112,7 +112,7 @@ export default function Events() {
           <div className="events-grid">
             {events.map((e) => {
               const isSoldOut = e.tickets_sold >= e.total_tickets;
-              const isPastEvent = new Date(e.end_datetime || e.start_datetime) < new Date();
+              const isPastEvent = e.is_past; // Use backend calculation
               
               return (
                 <div 

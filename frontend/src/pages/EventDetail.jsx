@@ -162,9 +162,8 @@ export default function EventDetail() {
   }
   if (!event) return <div className="loading-message">Event not found</div>;
 
-  // Check if event has passed
-  const eventEndTime = new Date(event.end_datetime || event.start_datetime);
-  const isPastEvent = eventEndTime < new Date();
+  // Check if event has passed - use backend calculation
+  const isPastEvent = event.is_past;
 
   // Check if ALL ticket types are sold out
   const allTicketTypesSoldOut = event.ticket_types?.length > 0 
