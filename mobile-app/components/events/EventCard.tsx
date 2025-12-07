@@ -12,7 +12,8 @@ interface EventCardProps {
 
 export const EventCard: React.FC<EventCardProps> = ({ event, onPress }) => {
   const startDate = new Date(event.start_datetime);
-  const isUpcoming = startDate > new Date();
+  const endDate = new Date(event.end_datetime || event.start_datetime);
+  const isPastEvent = endDate < new Date();
   const availableTickets = event.total_tickets - (event.tickets_sold || 0);
   const isSoldOut = availableTickets <= 0;
 
@@ -38,7 +39,7 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onPress }) => {
           <Text style={styles.title} numberOfLines={2}>
             {event.title}
           </Text>
-          {!isUpcoming && <View style={styles.pastBadge}>
+          {isPastEvent && <View style={styles.pastBadge}>
             <Text style={styles.pastText}>Past</Text>
           </View>}
         </View>

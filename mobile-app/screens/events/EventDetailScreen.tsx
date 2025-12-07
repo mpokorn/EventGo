@@ -173,19 +173,34 @@ export default function EventDetailScreen() {
 
         <Card style={styles.infoCard}>
           <View style={styles.infoRow}>
-            <Ionicons name="calendar-outline" size={20} color={colors.primary} />
+            <Ionicons name="time-outline" size={20} color={colors.primary} />
             <View style={styles.infoTextContainer}>
-              <Text style={styles.infoLabel}>Date & Time</Text>
+              <Text style={styles.infoLabel}>Starts</Text>
               <Text style={styles.infoValue}>
                 {startDate.toLocaleDateString('en-US', {
-                  weekday: 'long',
+                  weekday: 'short',
                   year: 'numeric',
-                  month: 'long',
+                  month: 'short',
                   day: 'numeric',
+                })} at {startDate.toLocaleTimeString('en-US', {
+                  hour: '2-digit',
+                  minute: '2-digit',
                 })}
               </Text>
+            </View>
+          </View>
+
+          <View style={styles.infoRow}>
+            <Ionicons name="checkmark-circle-outline" size={20} color={colors.primary} />
+            <View style={styles.infoTextContainer}>
+              <Text style={styles.infoLabel}>Ends</Text>
               <Text style={styles.infoValue}>
-                {startDate.toLocaleTimeString('en-US', {
+                {endDate.toLocaleDateString('en-US', {
+                  weekday: 'short',
+                  year: 'numeric',
+                  month: 'short',
+                  day: 'numeric',
+                })} at {endDate.toLocaleTimeString('en-US', {
                   hour: '2-digit',
                   minute: '2-digit',
                 })}

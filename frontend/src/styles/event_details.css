@@ -65,11 +65,26 @@
 .event-detail-info-list p {
   margin-bottom: 0.7rem;
   color: var(--color-text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.event-detail-info-list p svg {
+  color: var(--color-primary);
+  flex-shrink: 0;
 }
 
 .event-detail-info-list span {
   font-weight: 600;
   color: var(--color-text-secondary);
+}
+
+.event-about-description {
+  color: var(--color-text-secondary);
+  font-size: 1rem;
+  line-height: 1.6;
+  margin: 0;
 }
 
 /* INPUTS */

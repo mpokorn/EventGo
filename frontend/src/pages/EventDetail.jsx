@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import Modal from "../components/Modal";
 import api from "../api/api";
+import { Clock, CheckCircle, MapPin, Ticket, User, Info } from "lucide-react";
 import "../styles/event_details.css";
 
 export default function EventDetail() {
@@ -194,9 +195,39 @@ export default function EventDetail() {
           <h3>Event Details</h3>
 
           <div className="event-detail-info-list">
-            <p><span>Date:</span> {new Date(event.start_datetime).toLocaleString("sl-SI")}</p>
-            <p><span>Location:</span> {event.location}</p>
-            <p><span>Tickets Sold:</span> {event.tickets_sold}/{event.total_tickets}</p>
+            <p>
+              <Clock size={20} />
+              <span>Start:</span> {new Date(event.start_datetime).toLocaleString("sl-SI")}
+            </p>
+            <p>
+              <CheckCircle size={20} />
+              <span>End:</span> {new Date(event.end_datetime || event.start_datetime).toLocaleString("sl-SI")}
+            </p>
+            <p>
+              <MapPin size={20} />
+              <span>Location:</span> {event.location}
+            </p>
+            <p>
+              <User size={20} />
+              <span>Organizer:</span> {event.organizer_name || `Organizer #${event.organizer_id}`}
+            </p>
+          </div>
+        </div>
+
+        {/* ABOUT EVENT */}
+        <div className="event-detail-card event-detail-info-card">
+          <h3>About Event</h3>
+          <p className="event-about-description">{event.description}</p>
+        </div>
+
+        {/* TICKET INFO */}
+        <div className="event-detail-card event-detail-info-card">
+          <h3>Ticket Information</h3>
+          <div className="event-detail-info-list">
+            <p>
+              <Ticket size={20} />
+              <span>Tickets Sold:</span> {event.tickets_sold}/{event.total_tickets}
+            </p>
           </div>
         </div>
 

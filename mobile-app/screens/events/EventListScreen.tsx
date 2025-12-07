@@ -40,11 +40,11 @@ export default function EventListScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [searchQuery]);
+  }, [searchQuery, filter]);
 
   useEffect(() => {
     loadEvents();
-  }, [filter]);
+  }, [loadEvents]);
 
   useEffect(() => {
     const delayDebounceFn = setTimeout(() => {
@@ -54,7 +54,7 @@ export default function EventListScreen() {
     }, 500);
 
     return () => clearTimeout(delayDebounceFn);
-  }, [searchQuery]);
+  }, [searchQuery, loadEvents]);
 
   const onRefresh = () => {
     setRefreshing(true);

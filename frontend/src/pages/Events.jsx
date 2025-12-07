@@ -24,15 +24,10 @@ export default function Events() {
       const res = await api.get(`/events?${params.toString()}`);
       const eventsData = res.data.events || res.data || [];
       
-      console.log('API Response:', res.data);
-      console.log('Pagination data:', res.data.pagination);
-      console.log('Total events:', eventsData.length);
-      
       setEvents(eventsData);
       
       if (res.data.pagination) {
         setPagination(res.data.pagination);
-        console.log('Pagination set:', res.data.pagination);
       }
     } catch (err) {
       console.error("API error:", err);
