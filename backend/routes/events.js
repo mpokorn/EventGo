@@ -165,7 +165,7 @@ router.get("/", async (req, res, next) => {
       }
     });
   } catch (err) {
-    console.error("Napaka pri GET /events:", err);
+    console.error("Error in GET /events:", err);
     next(err);
   }
 });
@@ -288,7 +288,7 @@ router.get("/:id", validateId('id'), async (req, res, next) => {
 
     res.status(200).json(event);
   } catch (err) {
-    console.error("Napaka pri GET /events/:id:", err);
+    console.error("Error in GET /events/:id:", err);
     next(err);
   }
 });

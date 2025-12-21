@@ -110,7 +110,7 @@ router.post("/register", async (req, res, next) => {
 
     if (existing.rows.length > 0) {
       return res.status(400).json({
-        message: "Uporabnik s tem e-naslovom že obstaja!"
+        message: "User with this email already exists!"
       });
     }
 
@@ -352,9 +352,48 @@ router.post("/organizer-register", async (req, res, next) => {
   }
 });
 
-/* --------------------------------------
-    Organizer Login
--------------------------------------- */
+/**
+ * @swagger
+ * /users/organizer-login:
+ *   post:
+ *     summary: Organizer login
+ *     tags: [Users]
+ *     security: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - password
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *               password:
+ *                 type: string
+ *                 format: password
+ *     responses:
+ *       200:
+ *         description: Organizer login successful
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 token:
+ *                   type: string
+ *                 refreshToken:
+ *                   type: string
+ *                 user:
+ *                   $ref: '#/components/schemas/User'
+ *       401:
+ *         description: Invalid credentials or not an organizer
+ */
 router.post("/organizer-login", async (req, res, next) => {
   const { email, password } = req.body;
 
@@ -526,9 +565,45 @@ router.get("/:id", requireAuth, validateId('id'), async (req, res, next) => {
   }
 });
 
-/* --------------------------------------
-    Add user (PROTECTED - admin only)
--------------------------------------- */
+/**
+ * @swagger
+ * /users:
+ *   post:
+ *     summary: Create a new user (admin)
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - first_name
+ *               - last_name
+ *               - email
+ *               - password
+ *             properties:
+ *               first_name:
+ *                 type: string
+ *               last_name:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *                 format: email
+ *               password:
+ *                 type: string
+ *                 format: password
+ *               role:
+ *                 type: string
+ *                 enum: [user, organizer, admin]
+ *     responses:
+ *       201:
+ *         description: User created successfully
+ *       400:
+ *         description: Validation error or email already exists
+ */
 router.post("/", requireAuth, async (req, res, next) => {
   const { first_name, last_name, email, password, role } = req.body;
 
@@ -599,9 +674,46 @@ router.post("/", requireAuth, async (req, res, next) => {
   }
 });
 
-/* --------------------------------------
-    Refresh Token Endpoint
--------------------------------------- */
+/**
+ * @swagger
+ * /users/refresh-token:
+ *   post:
+ *     summary: Refresh access token
+ *     tags: [Users]
+ *     security: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - refreshToken
+ *             properties:
+ *               refreshToken:
+ *                 type: string
+ *                 description: The refresh token received during login
+ *     responses:
+ *       200:
+ *         description: Token refreshed successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 token:
+ *                   type: string
+ *                 refreshToken:
+ *                   type: string
+ *                 user:
+ *                   $ref: '#/components/schemas/User'
+ *       401:
+ *         description: Invalid or expired refresh token
+ *       404:
+ *         description: User not found
+ */
 router.post("/refresh-token", async (req, res, next) => {
   const { refreshToken } = req.body;
 
@@ -650,9 +762,52 @@ router.post("/refresh-token", async (req, res, next) => {
   }
 });
 
-/* --------------------------------------
-    Update user profile (PROTECTED - Own account only)
--------------------------------------- */
+/**
+ * @swagger
+ * /users/{id}:
+ *   put:
+ *     summary: Update user profile
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               first_name:
+ *                 type: string
+ *               last_name:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *                 format: email
+ *               password:
+ *                 type: string
+ *                 format: password
+ *                 description: New password
+ *               oldPassword:
+ *                 type: string
+ *                 format: password
+ *                 description: Current password (required if changing password)
+ *     responses:
+ *       200:
+ *         description: Profile updated successfully
+ *       400:
+ *         description: Validation error or email already in use
+ *       403:
+ *         description: Can only update own profile
+ *       404:
+ *         description: User not found
+ */
 router.put("/:id", requireAuth, validateId('id'), sanitizeBody, async (req, res, next) => {
   const id = req.params.id; // Already validated and converted to number
   const { first_name, last_name, email, password, oldPassword } = req.body;
@@ -769,9 +924,40 @@ router.put("/:id", requireAuth, validateId('id'), sanitizeBody, async (req, res,
   }
 });
 
-/* --------------------------------------
-    Delete user (PROTECTED - Own account only)
--------------------------------------- */
+/**
+ * @swagger
+ * /users/{id}:
+ *   delete:
+ *     summary: Delete user account
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: User ID
+ *     responses:
+ *       200:
+ *         description: User deleted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 deleted:
+ *                   $ref: '#/components/schemas/User'
+ *       400:
+ *         description: Cannot delete - user has related records
+ *       403:
+ *         description: Can only delete own account
+ *       404:
+ *         description: User not found
+ */
 router.delete("/:id", requireAuth, validateId('id'), async (req, res, next) => {
   const id = req.params.id; // Already validated
 

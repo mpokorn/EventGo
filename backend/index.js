@@ -54,6 +54,34 @@ app.use("/tickets", ticketsRouter);
 app.use("/transactions", transactionsRouter);
 app.use("/waitlist", waitlistRouter);
 
+// 404 handler - must come after all routes
+app.use((req, res) => {
+  res.status(404).json({ 
+    error: 'Route not found',
+    path: req.path 
+  });
+});
+
+// Global error handler - must be last middleware
+app.use((err, req, res, next) => {
+  console.error('Error:', err.stack);
+  
+  // Don't expose internal errors in production
+  const message = process.env.NODE_ENV === 'production' 
+    ? 'Internal server error' 
+    : err.message;
+  
+  const statusCode = err.statusCode || 500;
+  
+  res.status(statusCode).json({
+    error: message,
+    ...(process.env.NODE_ENV !== 'production' && { 
+      stack: err.stack,
+      details: err.details 
+    })
+  });
+});
+
 const PORT = process.env.PORT || 5000;
 
 // Get network IP addresses
