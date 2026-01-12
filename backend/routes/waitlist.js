@@ -34,7 +34,7 @@ export async function cleanupExpiredReservations() {
       return { cleaned: 0 };
     }
 
-    console.log(` Found ${expiredResult.rows.length} expired reservations to cleanup`);
+    //console.log(` Found ${expiredResult.rows.length} expired reservations to cleanup`);
 
     for (const expiredTicket of expiredResult.rows) {
       await client.query('BEGIN');
@@ -60,13 +60,13 @@ export async function cleanupExpiredReservations() {
           );
         }
 
-        console.log(`⏰ Expired reservation for user ${expiredTicket.user_id}, offering to next in waitlist...`);
+        //console.log(`⏰ Expired reservation for user ${expiredTicket.user_id}, offering to next in waitlist...`);
 
         // Try to assign to next person in waitlist
         const nextAssignment = await assignTicketToWaitlist(expiredTicket.event_id, expiredTicket.ticket_type_id);
         
         if (nextAssignment.assigned) {
-          console.log(`✅ Ticket assigned to user ${nextAssignment.user_id}`);
+          //console.log(`✅ Ticket assigned to user ${nextAssignment.user_id}`);
         }
 
         await client.query('COMMIT');
@@ -556,7 +556,7 @@ export async function assignTicketToWaitlist(event_id, ticket_type_id) {
   try {
     await client.query('BEGIN');
     
-    console.log(`🔍 Looking for waitlist users for event ${event_id}, ticket_type ${ticket_type_id}`);
+    //console.log(`🔍 Looking for waitlist users for event ${event_id}, ticket_type ${ticket_type_id}`);
     
     // Find first person in waitlist who hasn't been offered yet (offered_at IS NULL)
     const waitlistResult = await client.query(
@@ -569,11 +569,11 @@ export async function assignTicketToWaitlist(event_id, ticket_type_id) {
       [event_id]
     );
 
-    console.log(`📋 Found ${waitlistResult.rows.length} waitlist user(s)`);
+    //console.log(`📋 Found ${waitlistResult.rows.length} waitlist user(s)`);
 
     if (waitlistResult.rows.length === 0) {
       await client.query('ROLLBACK');
-      console.log('❌ No waitlist users found');
+      //console.log('❌ No waitlist users found');
       return { assigned: false };
     }
 
@@ -605,7 +605,7 @@ export async function assignTicketToWaitlist(event_id, ticket_type_id) {
     );
     const transaction_id = txResult.rows[0].id;
     
-    console.log(`🎫 Created transaction ${transaction_id} for user ${waitlistUser.user_id}. Offered at: ${waitlistUpdate.rows[0].offered_at}, Expires at: ${waitlistUpdate.rows[0].reservation_expires_at}`);
+    //console.log(` Created transaction ${transaction_id} for user ${waitlistUser.user_id}. Offered at: ${waitlistUpdate.rows[0].offered_at}, Expires at: ${waitlistUpdate.rows[0].reservation_expires_at}`);
 
     // Ticket status lifecycle:
     //   'reserved' - Ticket is held for a user promoted from the waitlist; user must accept and complete payment to activate.
@@ -688,7 +688,7 @@ router.post("/accept-ticket/:transaction_id", validateId('transaction_id'), asyn
     const ticket = ticketResult.rows[0];
     const transaction = txResult.rows[0];
 
-    console.log(`🔍 Checking waitlist for user ${transaction.user_id}, event ${ticket.event_id}`);
+    //console.log(` Checking waitlist for user ${transaction.user_id}, event ${ticket.event_id}`);
 
     // Check waitlist entry for expiration (if it exists)
     const waitlistCheck = await pool.query(
@@ -696,7 +696,7 @@ router.post("/accept-ticket/:transaction_id", validateId('transaction_id'), asyn
       [transaction.user_id, ticket.event_id]
     );
 
-    console.log(`📋 Waitlist check result:`, waitlistCheck.rows);
+   //console.log(` Waitlist check result:`, waitlistCheck.rows);
 
     // If waitlist entry exists, check for expiration
     if (waitlistCheck.rows.length > 0) {
@@ -708,14 +708,14 @@ router.post("/accept-ticket/:transaction_id", validateId('transaction_id'), asyn
         const expiresAt = new Date(waitlistEntry.reservation_expires_at);
         const offeredAt = new Date(waitlistEntry.offered_at);
         
-        console.log('🕐 Reservation check:', {
+        /*console.log(' Reservation check:', {
           transaction_id,
           offered_at: offeredAt.toISOString(),
           current_time: now.toISOString(),
           expires_at: expiresAt.toISOString(),
           is_expired: expiresAt < now,
           minutes_remaining: Math.floor((expiresAt - now) / (60 * 1000))
-        });
+        });*/
         
         if (expiresAt < now) {
           // Reservation expired - clean it up and return error

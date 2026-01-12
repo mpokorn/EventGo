@@ -13,10 +13,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@react-native-async-storage/async-storage": "^2.2.0",
-    "axios": "^1.13.2",
+    "bcrypt": "^6.0.0",
     "cors": "^2.8.5",
-    "dompurify": "^3.3.0",
     "dotenv": "^16.3.1",
     "express": "^4.19.2",
     "pg": "^8.11.3",

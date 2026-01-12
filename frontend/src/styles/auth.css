@@ -200,7 +200,7 @@ body {
 
 /* Gradient button */
 .btn-primary {
-  background: linear-gradient(90deg, var(--color-accent-light), var(--color-secondary));
+  background: linear-gradient(90deg, var(--color-accent), var(--color-secondary));
   color: var(--color-text-primary);
   border: none;
   border-radius: var(--radius-md);
@@ -214,13 +214,13 @@ body {
   display: block;
   box-sizing: border-box;
   box-shadow: var(--shadow-sm);
-  transition: filter var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-base);
+  transition: all var(--transition-slow);
   cursor: pointer;
 }
 
 .btn-primary:hover {
-  filter: brightness(1.07);
-  box-shadow: var(--shadow-md);
+  transform: scale(1.02);
+  opacity: 0.9;
 }
 .btn-primary:active {
   transform: translateY(1px);
@@ -228,6 +228,7 @@ body {
 .btn-primary:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+  transform: none;
 }
 
 /* Footer */
