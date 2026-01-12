@@ -159,7 +159,7 @@ export default function Profile() {
   };
 
 
-  /* 🎫 HANDLE TICKET REFUND/RETURN */
+  /* HANDLE TICKET REFUND/RETURN */
   const handleResell = async (ticketId, eventId) => {
     setModal({
       isOpen: true,
@@ -199,7 +199,7 @@ export default function Profile() {
     });
   };
 
-  /* 🎫 HANDLE ACCEPT RESERVED TICKET */
+  /* HANDLE ACCEPT RESERVED TICKET */
   const handleAcceptTicket = async (transactionId) => {
     try {
       const res = await api.post(`/waitlist/accept-ticket/${transactionId}`);

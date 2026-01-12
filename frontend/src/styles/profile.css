@@ -117,8 +117,6 @@
   list-style: none;
   margin: 0;
   padding: 0;
-  max-height: 340px;
-  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
@@ -702,5 +700,93 @@
   color: #9CA3AF;
   margin-top: 0.5rem;
 }
+
+/* ========================================
+   Accordion/Collapsible Sections
+======================================== */
+
+.ticket-section {
+  margin-bottom: var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--color-surface-glass);
+}
+
+.ticket-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.25rem;
+  background: var(--color-surface);
+  cursor: pointer;
+  user-select: none;
+  transition: background var(--transition-base);
+  border-bottom: 1px solid transparent;
+}
+
+.ticket-section-header:hover {
+  background: var(--color-surface-hover);
+}
+
+.ticket-section-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.ticket-section-header.success h3 {
+  color: var(--color-success);
+}
+
+.ticket-section-header.warning h3 {
+  color: #FF9800;
+}
+
+.count-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 8px;
+  background: var(--color-primary);
+  color: var(--color-text-primary);
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.accordion-icon {
+  font-size: 0.75rem;
+  color: var(--color-text-tertiary);
+  transition: transform var(--transition-base);
+}
+
+.ticket-section-content {
+  padding: 0.75rem 1.25rem 1rem;
+}
+
+.ticket-section-content .ticket-item {
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.ticket-section-content .ticket-item:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.ticket-section-content p {
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
 
 
