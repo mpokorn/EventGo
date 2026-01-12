@@ -6,7 +6,7 @@ import {
   ScrollView,
   RefreshControl,
   Alert,
-  SectionList,
+  TouchableOpacity,
 } from 'react-native';
 import { useAuth } from '../../../context/AuthContext';
 import { userService } from '../../../services/userService';
@@ -27,6 +27,20 @@ function ProfileTicketsTab() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [expandedSections, setExpandedSections] = useState({
+    reserved: true,
+    active: true,
+    pending_return: false,
+    refunded: false,
+    expired: false,
+  });
+
+  const toggleSection = (section: keyof typeof expandedSections) => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [section]: !prev[section],
+    }));
+  };
 
   const fetchTickets = useCallback(async () => {
     if (!user?.id) return;
@@ -258,52 +272,77 @@ function ProfileTicketsTab() {
 
       {sections.map((section, index) => (
         <View key={index} style={styles.section}>
-          <Text style={[
-            styles.sectionTitle,
-            section.type === 'reserved' && styles.sectionTitleSuccess,
-            section.type === 'pending_return' && styles.sectionTitleWarning,
-            section.type === 'refunded' && styles.sectionTitleSuccess,
-          ]}>
-            {section.title}
-          </Text>
-          
-          {section.type === 'active' && section.data.length === 0 && (
-            <Text style={styles.emptySection}>No active tickets.</Text>
-          )}
-          
-          {section.type === 'expired' && section.data.length === 0 && (
-            <Text style={styles.emptySection}>No expired tickets.</Text>
-          )}
-
-          {section.data.map(ticket => {
-            const soldOut = isEventSoldOut(ticket);
-            
-            return (
-              <View key={ticket.id} style={styles.ticketContainer}>
-                <TicketCard
-                  ticket={ticket}
-                  onAccept={section.type === 'reserved' ? () => handleAccept(ticket) : undefined}
-                  onDecline={section.type === 'reserved' ? () => handleDecline(ticket) : undefined}
-                  onRefund={section.type === 'active' && soldOut ? () => handleRefund(ticket) : undefined}
-                />
-                
-                {section.type === 'active' && !soldOut && (
-                  <View style={styles.hint}>
-                    <Text style={styles.hintText}>
-                      Tickets can only be returned for sold out events
-                    </Text>
-                  </View>
-                )}
-                
-                {section.type === 'active' && soldOut && (
-                  <View style={styles.soldOutIndicator}>
-                    <Ionicons name="ellipse" size={8} color={colors.error} />
-                    <Text style={styles.soldOutText}>Sold Out</Text>
-                  </View>
-                )}
+          <TouchableOpacity 
+            style={[
+              styles.sectionHeader,
+              section.type === 'reserved' && styles.sectionHeaderSuccess,
+              section.type === 'pending_return' && styles.sectionHeaderWarning,
+              section.type === 'refunded' && styles.sectionHeaderSuccess,
+            ]}
+            onPress={() => toggleSection(section.type)}
+            activeOpacity={0.7}
+          >
+            <View style={styles.sectionHeaderContent}>
+              <Text style={[
+                styles.sectionTitle,
+                section.type === 'reserved' && styles.sectionTitleSuccess,
+                section.type === 'pending_return' && styles.sectionTitleWarning,
+                section.type === 'refunded' && styles.sectionTitleSuccess,
+              ]}>
+                {section.title}
+              </Text>
+              <View style={styles.countBadge}>
+                <Text style={styles.countBadgeText}>{section.data.length}</Text>
               </View>
-            );
-          })}
+            </View>
+            <Ionicons 
+              name={expandedSections[section.type] ? "chevron-down" : "chevron-forward"} 
+              size={20} 
+              color={colors.textSecondary} 
+            />
+          </TouchableOpacity>
+          
+          {expandedSections[section.type] && (
+            <View style={styles.sectionContent}>
+              {section.type === 'active' && section.data.length === 0 && (
+                <Text style={styles.emptySection}>No active tickets.</Text>
+              )}
+              
+              {section.type === 'expired' && section.data.length === 0 && (
+                <Text style={styles.emptySection}>No expired tickets.</Text>
+              )}
+
+              {section.data.map(ticket => {
+                const soldOut = isEventSoldOut(ticket);
+                
+                return (
+                  <View key={ticket.id} style={styles.ticketContainer}>
+                    <TicketCard
+                      ticket={ticket}
+                      onAccept={section.type === 'reserved' ? () => handleAccept(ticket) : undefined}
+                      onDecline={section.type === 'reserved' ? () => handleDecline(ticket) : undefined}
+                      onRefund={section.type === 'active' && soldOut ? () => handleRefund(ticket) : undefined}
+                    />
+                    
+                    {section.type === 'active' && !soldOut && (
+                      <View style={styles.hint}>
+                        <Text style={styles.hintText}>
+                          Tickets can only be returned for sold out events
+                        </Text>
+                      </View>
+                    )}
+                    
+                    {section.type === 'active' && soldOut && (
+                      <View style={styles.soldOutIndicator}>
+                        <Ionicons name="ellipse" size={8} color={colors.error} />
+                        <Text style={styles.soldOutText}>Sold Out</Text>
+                      </View>
+                    )}
+                  </View>
+                );
+              })}
+            </View>
+          )}
         </View>
       ))}
     </ScrollView>
@@ -357,18 +396,61 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   section: {
-    marginBottom: spacing.xl,
+    marginBottom: spacing.md,
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: spacing.md,
+    backgroundColor: colors.card,
+    borderBottomWidth: 1,
+    borderBottomColor: 'transparent',
+  },
+  sectionHeaderSuccess: {
+    backgroundColor: colors.success + '10',
+  },
+  sectionHeaderWarning: {
+    backgroundColor: colors.warning + '10',
+  },
+  sectionHeaderContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: spacing.sm,
   },
   sectionTitle: {
-    ...typography.h3,
+    fontSize: 16,
+    fontWeight: '600',
     color: colors.text,
-    marginBottom: spacing.md,
   },
   sectionTitleSuccess: {
     color: colors.success,
   },
   sectionTitleWarning: {
     color: colors.warning,
+  },
+  countBadge: {
+    backgroundColor: colors.primary,
+    borderRadius: 12,
+    minWidth: 24,
+    height: 24,
+    paddingHorizontal: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  countBadgeText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  sectionContent: {
+    padding: spacing.md,
   },
   emptySection: {
     color: colors.textSecondary,
