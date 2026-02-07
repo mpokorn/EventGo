@@ -29,7 +29,7 @@ EventGo is a comprehensive event management platform API that enables users to b
 ## Base URL
 
 ```
-http://localhost:5000/api
+http://localhost:5000
 ```
 
 For production deployments, replace `localhost:5000` with your production domain.
@@ -52,14 +52,14 @@ Access tokens expire after a certain period. Use the refresh token endpoint to o
 
 ### Public Endpoints (No Authentication Required)
 
-- `GET /api/events` - Browse events
-- `GET /api/events/:id` - Get event details
-- `GET /api/ticket-types/:event_id` - Get ticket types for an event
-- `POST /api/users/register` - User registration
-- `POST /api/users/login` - User login
-- `POST /api/users/organizer-register` - Organizer registration
-- `POST /api/users/organizer-login` - Organizer login
-- `POST /api/users/refresh-token` - Refresh access token
+- `GET /events` - Browse events
+- `GET /events/:id` - Get event details
+- `GET /ticket-types/:event_id` - Get ticket types for an event
+- `POST /users/register` - User registration
+- `POST /users/login` - User login
+- `POST /users/organizer-register` - Organizer registration
+- `POST /users/organizer-login` - Organizer login
+- `POST /users/refresh-token` - Refresh access token
 
 ---
 
@@ -96,7 +96,7 @@ Interactive API documentation is available via Swagger UI.
 
 #### Register User
 ```
-POST /api/users/register
+POST /users/register
 ```
 Create a new user account.
 
@@ -131,7 +131,7 @@ Create a new user account.
 
 #### Login
 ```
-POST /api/users/login
+POST /users/login
 ```
 Authenticate a user and receive access tokens.
 
@@ -163,7 +163,7 @@ Authenticate a user and receive access tokens.
 
 #### Register Organizer
 ```
-POST /api/users/organizer-register
+POST /users/organizer-register
 ```
 Register as an event organizer.
 
@@ -184,7 +184,7 @@ Register as an event organizer.
 
 #### Organizer Login
 ```
-POST /api/users/organizer-login
+POST /users/organizer-login
 ```
 Authenticate an organizer account.
 
@@ -202,7 +202,7 @@ Authenticate an organizer account.
 
 #### Refresh Token
 ```
-POST /api/users/refresh-token
+POST /users/refresh-token
 ```
 Get a new access token using a refresh token.
 
@@ -225,11 +225,14 @@ Get a new access token using a refresh token.
 
 #### Get All Users
 ```
-GET /api/users
+GET /users
 ```
 **Authentication Required**
 
 Retrieve a list of all users.
+
+**Query Parameters:**
+- `role` (string): Filter by user role (`user`, `organizer`, `admin`)
 
 **Response:** `200 OK`
 ```json
@@ -249,19 +252,37 @@ Retrieve a list of all users.
 
 #### Get User by ID
 ```
-GET /api/users/:id
+GET /users/:id
 ```
 **Authentication Required**
 
-Retrieve a specific user by ID.
+Retrieve a specific user by ID (users can only access their own profile).
 
 **Response:** `200 OK`
+```json
+{
+  "user": {
+    "id": 1,
+    "first_name": "John",
+    "last_name": "Doe",
+    "email": "john.doe@example.com",
+    "role": "user",
+    "created_at": "2026-01-15T10:30:00Z"
+  },
+  "related_counts": {
+    "event_count": "0",
+    "transaction_count": "5",
+    "ticket_count": "8",
+    "waitlist_count": "2"
+  }
+}
+```
 
 ---
 
 #### Create User
 ```
-POST /api/users
+POST /users
 ```
 **Authentication Required**
 
@@ -271,7 +292,7 @@ Create a new user (admin functionality).
 
 #### Update User
 ```
-PUT /api/users/:id
+PUT /users/:id
 ```
 **Authentication Required**
 
@@ -282,9 +303,13 @@ Update user information.
 {
   "first_name": "John",
   "last_name": "Doe",
-  "email": "john.updated@example.com"
+  "email": "john.updated@example.com",
+  "password": "NewSecurePass123!",
+  "oldPassword": "SecurePass123!"
 }
 ```
+
+**Note:** When changing password, both `password` (new password) and `oldPassword` (current password) are required.
 
 **Response:** `200 OK`
 
@@ -292,7 +317,7 @@ Update user information.
 
 #### Delete User
 ```
-DELETE /api/users/:id
+DELETE /users/:id
 ```
 **Authentication Required**
 
@@ -306,20 +331,22 @@ Delete a user account.
 
 #### Get All Events
 ```
-GET /api/events
+GET /events
 ```
 Get a list of events with optional filters.
 
 **Query Parameters:**
 - `search` (string): Search by title or description
 - `location` (string): Filter by location
+- `startDate` (string): Filter events starting from this date
+- `endDate` (string): Filter events ending before this date
 - `filter` (string): Filter by status (`all`, `upcoming`, `past`) - default: `upcoming`
 - `page` (integer): Page number - default: 1
 - `limit` (integer): Items per page - default: 12
 
 **Example:**
 ```
-GET /api/events?search=concert&location=New York&filter=upcoming&page=1&limit=10
+GET /events?search=concert&location=New York&filter=upcoming&page=1&limit=10
 ```
 
 **Response:** `200 OK`
@@ -344,7 +371,7 @@ GET /api/events?search=concert&location=New York&filter=upcoming&page=1&limit=10
     "currentPage": 1,
     "totalPages": 5,
     "totalEvents": 48,
-    "limit": 10
+    "eventsPerPage": 10
   }
 }
 ```
@@ -353,7 +380,7 @@ GET /api/events?search=concert&location=New York&filter=upcoming&page=1&limit=10
 
 #### Get Event by ID
 ```
-GET /api/events/:id
+GET /events/:id
 ```
 Get detailed information about a specific event.
 
@@ -370,7 +397,26 @@ Get detailed information about a specific event.
   "tickets_sold": 3200,
   "organizer_id": 5,
   "organizer_name": "Jane Smith",
-  "created_at": "2026-01-10T12:00:00Z"
+  "is_past": false,
+  "created_at": "2026-01-10T12:00:00Z",
+  "ticket_types": [
+    {
+      "id": 1,
+      "type": "VIP",
+      "price": 100.00,
+      "total_tickets": 500,
+      "tickets_sold": 450,
+      "created_at": "2026-01-10T12:00:00Z"
+    },
+    {
+      "id": 2,
+      "type": "General Admission",
+      "price": 50.00,
+      "total_tickets": 4500,
+      "tickets_sold": 2750,
+      "created_at": "2026-01-10T12:00:00Z"
+    }
+  ]
 }
 ```
 
@@ -378,7 +424,7 @@ Get detailed information about a specific event.
 
 #### Get Events by Organizer
 ```
-GET /api/events/organizer/:organizerId
+GET /events/organizer/:organizerId
 ```
 **Authentication Required**
 
@@ -390,7 +436,7 @@ Get all events created by a specific organizer.
 
 #### Create Event
 ```
-POST /api/events
+POST /events
 ```
 **Authentication Required** (Organizer role)
 
@@ -425,7 +471,7 @@ Create a new event.
 
 #### Update Event
 ```
-PUT /api/events/:id
+PUT /events/:id
 ```
 **Authentication Required** (Must be event organizer)
 
@@ -446,7 +492,7 @@ Update event details.
 
 #### Get Event Analytics
 ```
-GET /api/events/:id/analytics
+GET /events/:id/analytics
 ```
 **Authentication Required** (Must be event organizer)
 
@@ -476,7 +522,7 @@ Get analytics and statistics for an event.
 
 #### Delete Event
 ```
-DELETE /api/events/:id
+DELETE /events/:id
 ```
 **Authentication Required** (Must be event organizer)
 
@@ -490,7 +536,7 @@ Delete an event.
 
 #### Get All Tickets
 ```
-GET /api/tickets
+GET /tickets
 ```
 **Authentication Required**
 
@@ -523,7 +569,7 @@ Get a list of all tickets.
 
 #### Get Ticket by ID
 ```
-GET /api/tickets/:id
+GET /tickets/:id
 ```
 **Authentication Required**
 
@@ -535,19 +581,41 @@ Get details of a specific ticket.
 
 #### Get User's Tickets
 ```
-GET /api/tickets/user/:user_id
+GET /tickets/user/:user_id
 ```
 **Authentication Required**
 
 Get all tickets purchased by a specific user.
 
 **Response:** `200 OK`
+```json
+{
+  "message": "User tickets retrieved successfully.",
+  "user": {
+    "id": 3,
+    "name": "John Doe"
+  },
+  "total_tickets": 3,
+  "tickets": [
+    {
+      "id": 45,
+      "event_name": "Summer Music Festival",
+      "location": "Central Park, New York",
+      "start_datetime": "2026-07-15T18:00:00Z",
+      "ticket_type": "General Admission",
+      "ticket_price": 50.00,
+      "status": "active",
+      "issued_at": "2026-02-01T14:30:00Z"
+    }
+  ]
+}
+```
 
 ---
 
 #### Get User's Tickets for Event
 ```
-GET /api/tickets/user/:user_id/event/:event_id
+GET /tickets/user/:user_id/event/:event_id
 ```
 **Authentication Required**
 
@@ -559,7 +627,7 @@ Get all tickets for a specific user and event combination.
 
 #### Get Tickets for Event
 ```
-GET /api/tickets/event/:event_id
+GET /tickets/event/:event_id
 ```
 **Authentication Required**
 
@@ -571,7 +639,7 @@ Get all tickets sold for a specific event.
 
 #### Purchase Tickets
 ```
-POST /api/tickets
+POST /tickets
 ```
 **Authentication Required**
 
@@ -580,45 +648,25 @@ Purchase one or more tickets for an event.
 **Request Body:**
 ```json
 {
-  "user_id": 3,
   "event_id": 1,
-  "tickets": [
-    {
-      "ticket_type_id": 2,
-      "quantity": 2
-    },
-    {
-      "ticket_type_id": 3,
-      "quantity": 1
-    }
-  ],
-  "payment_method": "credit_card"
+  "ticket_type_id": 2,
+  "quantity": 2,
+  "payment_method": "card"
 }
 ```
+
+**Note:** 
+- `quantity` defaults to 1 if not provided (maximum: 10)
+- `payment_method` options: `card`, `paypal`
 
 **Response:** `201 Created`
 ```json
 {
-  "message": "Tickets purchased successfully",
+  "message": "Successfully purchased 2 ticket(s)!",
   "transaction_id": 10,
-  "total_price": 150.00,
-  "tickets": [
-    {
-      "id": 45,
-      "ticket_type": "General Admission",
-      "price": 50.00
-    },
-    {
-      "id": 46,
-      "ticket_type": "General Admission",
-      "price": 50.00
-    },
-    {
-      "id": 47,
-      "ticket_type": "VIP",
-      "price": 50.00
-    }
-  ]
+  "total_price": 100.00,
+  "quantity": 2,
+  "payment_method": "card"
 }
 ```
 
@@ -626,31 +674,61 @@ Purchase one or more tickets for an event.
 
 #### Refund Ticket (User)
 ```
-PUT /api/tickets/:id/refund
+PUT /tickets/:id/refund
 ```
 **Authentication Required**
 
 Request a refund for a ticket.
 
+**Important:** 
+- Only works for sold-out events
+- Ticket status changes to `pending_return`
+- You keep the ticket until someone from waitlist purchases it
+- If waitlist exists, ticket is offered to first person
+
 **Response:** `200 OK`
+```json
+{
+  "message": "Your ticket has been offered to someone on the waitlist...",
+  "ticket": {
+    "id": 45,
+    "status": "pending_return"
+  },
+  "assigned_to_waitlist": true
+}
+```
 
 ---
 
 #### Refund Ticket (Organizer)
 ```
-PUT /api/tickets/:id/organizer-refund
+PUT /tickets/:id/organizer-refund
 ```
 **Authentication Required** (Must be event organizer)
 
 Organizer-initiated ticket refund.
 
+**Note:** 
+- Can refund tickets anytime (not just sold-out events)
+- Immediately refunds and decrements `tickets_sold`
+- If event was sold out, offers ticket to waitlist
+
 **Response:** `200 OK`
+```json
+{
+  "message": "Ticket refunded successfully! It has been offered to the first person on the waitlist.",
+  "ticket_id": 45,
+  "event_id": 1,
+  "tickets_available": 1801,
+  "waitlist_assigned": true
+}
+```
 
 ---
 
 #### Delete Ticket
 ```
-DELETE /api/tickets/:id
+DELETE /tickets/:id
 ```
 **Authentication Required**
 
@@ -664,7 +742,7 @@ Delete a ticket.
 
 #### Get Ticket Types for Event
 ```
-GET /api/ticket-types/:event_id
+GET /ticket-types/:event_id
 ```
 Get all ticket types available for a specific event.
 
@@ -698,7 +776,7 @@ Get all ticket types available for a specific event.
 
 #### Create Ticket Type
 ```
-POST /api/ticket-types
+POST /ticket-types
 ```
 **Authentication Required** (Must be event organizer)
 
@@ -715,12 +793,28 @@ Create a new ticket type for an event.
 ```
 
 **Response:** `201 Created`
+```json
+{
+  "message": "Ticket type successfully added!",
+  "ticket_type": {
+    "id": 1,
+    "event_id": 1,
+    "type": "VIP",
+    "price": 100.00,
+    "total_tickets": 500,
+    "tickets_sold": 0,
+    "created_at": "2026-02-07T10:00:00Z"
+  }
+}
+```
+
+**Note:** Creating a ticket type automatically updates the event's `total_tickets` count.
 
 ---
 
 #### Update Ticket Type
 ```
-PATCH /api/ticket-types/:id
+PATCH /ticket-types/:id
 ```
 **Authentication Required** (Must be event organizer)
 
@@ -740,7 +834,7 @@ Update ticket type details.
 
 #### Delete Ticket Type
 ```
-DELETE /api/ticket-types/:id
+DELETE /ticket-types/:id
 ```
 **Authentication Required** (Must be event organizer)
 
@@ -752,7 +846,7 @@ Delete a ticket type.
 
 #### Recount Tickets Sold
 ```
-PUT /api/ticket-types/:id/recount
+PUT /ticket-types/:id/recount
 ```
 **Authentication Required** (Must be event organizer)
 
@@ -764,19 +858,35 @@ Recalculate the number of tickets sold for a ticket type.
 
 #### Sync All Ticket Types
 ```
-POST /api/ticket-types/sync-all
+POST /ticket-types/sync-all
 ```
 **Authentication Required**
 
-Synchronize ticket counts across all ticket types.
+Synchronize ticket counts across all ticket types and events. This endpoint recounts all `tickets_sold` from actual ticket records and updates both ticket types and events accordingly.
+
+**Use case:** Fix data inconsistencies or refresh counts after manual database changes.
 
 **Response:** `200 OK`
+```json
+{
+  "message": "All ticket counts synchronized successfully!",
+  "success": true,
+  "ticket_types_updated": [
+    {
+      "id": 1,
+      "type": "VIP",
+      "tickets_sold": 450,
+      "total_tickets": 500
+    }
+  ]
+}
+```
 
 ---
 
 #### Debug Ticket Type
 ```
-GET /api/ticket-types/debug/:event_id
+GET /ticket-types/debug/:event_id
 ```
 Get debug information for ticket types of an event.
 
@@ -788,7 +898,7 @@ Get debug information for ticket types of an event.
 
 #### Get All Transactions
 ```
-GET /api/transactions
+GET /transactions
 ```
 **Authentication Required**
 
@@ -815,7 +925,7 @@ Get a list of all transactions.
 
 #### Get Transactions by User
 ```
-GET /api/transactions/user/:id
+GET /transactions/user/:id
 ```
 **Authentication Required**
 
@@ -827,7 +937,7 @@ Get all transactions for a specific user.
 
 #### Get Transaction by ID
 ```
-GET /api/transactions/:id
+GET /transactions/:id
 ```
 **Authentication Required**
 
@@ -859,7 +969,7 @@ Get details of a specific transaction.
 
 #### Create Transaction
 ```
-POST /api/transactions
+POST /transactions
 ```
 **Authentication Required**
 
@@ -870,17 +980,35 @@ Create a new transaction.
 {
   "user_id": 3,
   "total_price": 150.00,
-  "payment_method": "credit_card"
+  "status": "completed",
+  "payment_method": "card",
+  "reference_code": "TXN-20260207-XYZ789"
 }
 ```
 
+**Note:** Most fields are optional. `status` defaults to `completed`, `payment_method` defaults to `card`.
+
 **Response:** `201 Created`
+```json
+{
+  "message": "Transaction successfully added!",
+  "transaction": {
+    "id": 50,
+    "user_id": 3,
+    "total_price": 150.00,
+    "status": "completed",
+    "payment_method": "card",
+    "reference_code": "TXN-20260207-XYZ789",
+    "created_at": "2026-02-07T10:00:00Z"
+  }
+}
+```
 
 ---
 
 #### Delete Transaction
 ```
-DELETE /api/transactions/:id
+DELETE /transactions/:id
 ```
 **Authentication Required**
 
@@ -894,11 +1022,15 @@ Delete a transaction.
 
 #### Get All Waitlist Entries
 ```
-GET /api/waitlist
+GET /waitlist
 ```
 **Authentication Required**
 
 Get all waitlist entries.
+
+**Query Parameters:**
+- `event_id` (integer): Filter by specific event
+- `user_id` (integer): Filter by specific user
 
 **Response:** `200 OK`
 ```json
@@ -926,7 +1058,7 @@ Get all waitlist entries.
 
 #### Get Waitlist for Event
 ```
-GET /api/waitlist/event/:event_id
+GET /waitlist/event/:event_id
 ```
 **Authentication Required**
 
@@ -938,7 +1070,7 @@ Get all waitlist entries for a specific event.
 
 #### Get User's Waitlist Entries
 ```
-GET /api/waitlist/user/:user_id
+GET /waitlist/user/:user_id
 ```
 **Authentication Required**
 
@@ -950,7 +1082,7 @@ Get all waitlist entries for a specific user.
 
 #### Join Waitlist
 ```
-POST /api/waitlist
+POST /waitlist
 ```
 **Authentication Required**
 
@@ -960,24 +1092,38 @@ Join the waitlist for a sold-out event.
 ```json
 {
   "user_id": 5,
-  "event_id": 1,
-  "ticket_type_id": 2
+  "event_id": 1
 }
 ```
 
+**Note:** 
+- Only works for sold-out events
+- Cannot join waitlist for past events
+- User cannot be on the same event's waitlist twice
+- If a ticket is available from someone returning it, you'll be offered it immediately instead of joining the waitlist
+
 **Response:** `201 Created`
+
+**Scenario 1: Joined waitlist successfully**
 ```json
 {
-  "message": "Successfully joined waitlist",
-  "waitlist_entry": {
+  "message": "User successfully added to waitlist!",
+  "entry": {
     "id": 1,
     "user_id": 5,
     "event_id": 1,
-    "ticket_type_id": 2,
-    "position": 15,
-    "status": "waiting",
     "joined_at": "2026-02-05T10:00:00Z"
-  }
+  },
+  "position": 15
+}
+```
+
+**Scenario 2: Ticket offered immediately (someone returning)**
+```json
+{
+  "message": "A ticket is available! You have been offered a returned ticket. Please accept or decline it.",
+  "ticket_offered": true,
+  "transaction_id": 45
 }
 ```
 
@@ -985,7 +1131,7 @@ Join the waitlist for a sold-out event.
 
 #### Leave Waitlist (by ID)
 ```
-DELETE /api/waitlist/:id
+DELETE /waitlist/:id
 ```
 **Authentication Required**
 
@@ -997,7 +1143,7 @@ Remove yourself from a waitlist entry by ID.
 
 #### Leave Waitlist (by Event and User)
 ```
-DELETE /api/waitlist/event/:event_id/user/:user_id
+DELETE /waitlist/event/:event_id/user/:user_id
 ```
 **Authentication Required**
 
@@ -1009,25 +1155,37 @@ Remove yourself from a waitlist for a specific event.
 
 #### Accept Offered Ticket
 ```
-POST /api/waitlist/accept-ticket/:transaction_id
+POST /waitlist/accept-ticket/:transaction_id
 ```
 **Authentication Required**
 
 Accept a ticket that was offered from the waitlist.
 
-**Request Body:**
-```json
-{
-  "payment_method": "credit_card"
-}
-```
+**No request body required.**
+
+**Important:**
+- You have 30 minutes to accept after being offered the ticket
+- After 30 minutes, the reservation expires and goes to the next person
+- Previous ticket owner receives 98% refund (2% platform fee)
 
 **Response:** `200 OK`
 ```json
 {
-  "message": "Ticket purchased successfully",
-  "transaction_id": 45,
-  "tickets": [...]
+  "message": "Ticket accepted successfully! Previous owner will receive a refund of €49.00 (2% platform fee applied).",
+  "ticket": {
+    "id": 123,
+    "status": "active"
+  },
+  "refunded_ticket_id": 122,
+  "refund_amount": 49.00,
+  "platform_fee": "1.00"
+}
+```
+
+**Error Response:** `410 Gone` (if reservation expired)
+```json
+{
+  "message": "This reservation has expired (30 minutes limit). The ticket has been offered to the next person in the waitlist."
 }
 ```
 
@@ -1035,18 +1193,23 @@ Accept a ticket that was offered from the waitlist.
 
 #### Decline Offered Ticket
 ```
-POST /api/waitlist/decline-ticket/:transaction_id
+POST /waitlist/decline-ticket/:transaction_id
 ```
 **Authentication Required**
 
 Decline a ticket that was offered from the waitlist.
 
+**No request body required.**
+
 **Response:** `200 OK`
 ```json
 {
-  "message": "Ticket offer declined, offered to next person in waitlist"
+  "message": "Reservation declined.",
+  "assigned_to_next": true
 }
 ```
+
+**Note:** You'll be removed from the waitlist after declining. You can rejoin manually if you change your mind.
 
 ---
 
